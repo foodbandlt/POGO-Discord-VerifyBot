@@ -1201,7 +1201,7 @@ function processGymCommand(data, opts)
         optout.push(data.author.id);
         config.set('gymChallengerOptOut', optout, opts.guild);
         
-        data.author.removeRole(challRole);
+        data.member.removeRole(challRole);
         
         data.reply('All right, I\'ve removed you from the Gym Challenger role.  You\'re free to still participate, but the role will not be added to you unless you opt-in again with `!optin`');
     }
@@ -1218,7 +1218,7 @@ function processGymCommand(data, opts)
             config.set('gymChallengerOptOut', optout, opts.guild);
         }
         
-        data.author.addRole(challRole);
+        data.member.addRole(challRole);
         
         data.reply('Cool, I\'ve added the Gym Challenger role to you.  You will be alerted when Gym Leaders are available. If you want to opt-out of this role, use `!optout`');
     }
