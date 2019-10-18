@@ -137,6 +137,10 @@ var config = new Config({
         value: '',
         type: 'string'
     },
+    gymChallengerOptOut: {
+        value: [],
+        type: 'json'
+    },
     verifyChannelName: {
         value: 'verify',
         type: 'string'
@@ -286,6 +290,7 @@ client.on('message', (data, error) =>
         config.logDM(data);
     }
     
+    // Don't flip your own messages... endless flipping
     if (data.author.id != client.user.id)
     {
         // Table flip scenarios
@@ -1093,7 +1098,9 @@ function processGymCommand(data, opts)
 			'`'+ c + 'mybadges` - Shows your gym badges\n' +
 			'`'+ c + 'badgestats <type>` - Shows stats badge of specified type\n' +
 			'`'+ c + 'gymleaders` - Lists all gym leaders\n' +
-			'     Alias: `'+ c + 'leaders`\n'
+			'     Alias: `'+ c + 'leaders`\n' +
+            '`'+ c + 'optin` - Opts you into the **Gym Challenger** role.\n' +
+			'`'+ c + 'optout` - Opts you out of the **Gym Challenger** role.\n'
         );
     }
     
@@ -1186,6 +1193,35 @@ function processGymCommand(data, opts)
                 data.channel.send('**Gym leaders**:\n' + out);
             });
     }
+    
+    else if (opts.args[0] == 'optout')
+    {
+        let challRole = config.get('gymChallengerRoleID', opts.guild);
+        let optout = config.get('gymChallengerOptOut');
+        optout.push(data.author.id);
+        config.set('gymChallengerOptOut', optout, opts.guild);
+        
+        data.author.removeRole(challRole);
+        
+        data.reply('All right, I\'ve removed you from the Gym Challenger role.  You\'re free to still participate, but the role will not be added to you unless you opt-in again with `!optin`');
+    }
+    
+    else if (opts.args[0] == 'optin')
+    {
+        let challRole = config.get('gymChallengerRoleID', opts.guild);
+        let optout = config.get('gymChallengerOptOut');
+        let ind = optout.indexOf(data.author.id);
+        
+        if (ind > -1)
+        {
+            optout.splice(ind, 1);
+            config.set('gymChallengerOptOut', optout, opts.guild);
+        }
+        
+        data.author.addRole(challRole);
+        
+        data.reply('Cool, I\'ve added the Gym Challenger role to you.  You will be alerted when Gym Leaders are available. If you want to opt-out of this role, use `!optout`');
+    }
 	
     else if (opts.args[0] == 'badgestats')
     {
@@ -1257,6 +1293,7 @@ function processGymCommand(data, opts)
         let userMention = data.mentions.members.first();
         let challRole = config.get('gymChallengerRoleID', opts.guild);
         
+        
         if (!type){
             // This should never really happen, but just in case...
             data.reply('Unable to determine what gym leader type you are (something has gone very wrong)');
@@ -1279,7 +1316,10 @@ function processGymCommand(data, opts)
                 data.channel.send(userMention + ' has obtained the **' + capsFirstLetter(type) + '** badge!');
                 
                 // Add challenger role if setup and user does not already have it
-                if (config.get('isGymChallengerRoleSetup', opts.guild) && !userMention.roles.get(challRole))
+                if (config.get('isGymChallengerRoleSetup', opts.guild) && 
+                    !userMention.roles.get(challRole) && 
+                    config.get('gymChallengerOptOut').indexOf(data.author.id) == -1)
+                    
                     userMention.addRole(challRole);
             }
             else
