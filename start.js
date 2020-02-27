@@ -404,12 +404,14 @@ function processUserCommand(data, opts)
             '     Alias: `'+ c + 'numwant`, `wantnum`\n' +
 			'`'+ c + 'listwants` - Lists people that want that pokemon\n' +
             '     Alias: `'+ c + 'listwant`, `wantlist`, `wantslist`\n' +
+        /*
 			'`'+ c + 'votekick @<user>` - Votes to kick someone\n' +
 			'     Alias: `'+ c + 'vk`\n' +
 			'`'+ c + 'unvotekick @<user>` - Unvotes to kick someone\n' +
 			'     Alias: `'+ c + 'unvk`\n' +
 			'`'+ c + 'numvotekicks @<user>` - Displays how many votekicks a user has\n' +
             '     Alias: `'+ c + 'numvk`, `numvks`, `numvotekick`\n' +
+            */
             /*  Don't need raid commands anymore
 			'`'+ c + 'want <raid boss>` - Subscribes you to DM list for raid boss\n' +
 			'`'+ c + 'want` - Lists currently wanted raid bosses\n' +
@@ -546,6 +548,7 @@ function processUserCommand(data, opts)
     {
         data.channel.send(makeSafe('\u0028\u256f\u00b0\u25a1\u00b0\uff09\u256f\ufe35 ' + flip(opts.withoutCommand)));
     }
+    /*
     else if (opts.args[0] == 'votekick' || 
              opts.args[0] == 'vk') // Votekicks user
     {
@@ -649,7 +652,7 @@ function processUserCommand(data, opts)
         
         data.channel.send(countVotekick(vkobj[mem.id]) + ' votekicks for ' + makeSafe(mem.displayName));
     }
-    
+    */
     // *******************************
     // Raid commands
     // *******************************
