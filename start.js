@@ -206,6 +206,14 @@ var config = new Config({
     questCategories: {
         value: [],
         type: 'json'
+    },
+    adminRoles: {
+        value: [],
+        type: 'json'
+    },
+    mutedObj: {
+        value: {ids: [], objs: []},
+        type: 'json'
     }
     
 });
@@ -332,9 +340,13 @@ client.on('guildCreate', (data, error) =>
 
 function processChatCommand(data)
 {
-    let gymAdmins = config.get('gymAdmins', data.guild.id);
-    let isAdmin = (data.member.hasPermission('MANAGE_GUILD') || (data.author.username == 'Foodbandlt' && data.author.discriminator == '0185'));
+    let adminRoles = config.get('adminRoles');
     
+    let gymAdmins = config.get('gymAdmins', data.guild.id);
+    let isAdminRole = adminRoles.some( (i) => data.member.roles.has(i) );
+    let isAdmin = data.member.hasPermission('MANAGE_GUILD') || 
+                  (data.author.username == 'Foodbandlt' && data.author.discriminator == '0185');
+                  
     let opts = 
     {
         guild:              data.channel.guild.id,
@@ -343,6 +355,7 @@ function processChatCommand(data)
         args:               data.content.toLowerCase().substr(1).replace(/\n/g, ' ').split(' '),
         origArgs:           data.content.substr(1).split(' '),
         isAdmin:            isAdmin,
+        isAdminRole:        isAdminRole,
     };
     
     console.log('Chat command called');
@@ -369,7 +382,7 @@ function processChatCommand(data)
 
     // Return if user doesn't have permission to use these commands
     // Need Manage Server permissions to use them
-    if (!isAdmin) return;
+    if (!isAdmin && !isAdminRole) return;
 	
     processAdminCommand(data, opts);
 }
@@ -1640,6 +1653,9 @@ function processAdminCommand(data, opts)
             '`'+ c + 'setvkthreshold <number>` - Set the threshold for someone to get votekicked. Current: `' + config.get('votekickThreshold', opts.guild) + '`\n' +
             '`'+ c + 'getpokemonroles <number>` - Gets pokemon roles with <= `number` people in them\n' +
             '`'+ c + 'rmpokemonroles <pokemon1>,<pokemon2>...` - Removes pokemon roles listed\n' +
+            '`'+ c + 'addadminrole <role>` - Adds a role to the admin list, allowing use of administration commands (besides this one)\n' +
+            '`'+ c + 'rmadminrole <role>` - Removes a role from the admin list\n' +
+            '`'+ c + 'getadminroles` - Lists roles that are admins\n' +
 			'`'+ c + 'setcommand <symbol>` - Sets new command character to use chat commands. Current: `' + config.get('commandCharacter', opts.guild) + '`\n' +
             '`'+ c + 'setkeyword <keyword>` - Sets new keyword for being verified.  One word, no spaces.  Current: `' + config.get('verifyKeyword', opts.guild) + '`\n' +
 			'`'+ c + 'showchannel` - Makes channel visible to non-verified (but not able to send messages)\n' +
@@ -1715,6 +1731,76 @@ function processAdminCommand(data, opts)
     // BOT ADMINISTRATION COMMANDS
     // *******************************
     
+    else if (opts.args[0] == 'addadminrole') // Adds a role that can use admin commands (besides this one)
+    {
+        if (!opts.isAdmin && opts.isAdminRole)
+        {
+            data.reply('Sorry, this is literally the only command you can\'t use, lol.  Ask an administrator.');
+            return;
+        }
+        
+        if (data.mentions.roles.size == 0)
+        {
+            data.reply('I don\'t see any role mentions.');
+            return;
+        }
+        
+        let roles = config.get('adminRoles');
+        roles.push(data.mentions.roles.first().id);
+        config.set('adminRoles', roles, opts.guild);
+        data.react('👌');
+    }
+    else if (opts.args[0] == 'rmadminrole') // Adds a role that can use admin commands (besides this one)
+    {
+        if (!opts.isAdmin && opts.isAdminRole)
+        {
+            data.reply('Sorry, this is literally the only command you can\'t use, lol.  Ask an administrator.');
+            return;
+        }
+        
+        if (data.mentions.roles.size == 0)
+        {
+            data.reply('I don\'t see any role mentions.');
+            return;
+        }
+        
+        let roles = config.get('adminRoles');
+        let ind = roles.indexOf(data.mentions.roles.first().id);
+        
+        if (ind == -1)
+        {
+            data.reply('Role does not appear to be an admin role');
+            return;
+        }
+        
+        roles.splice(ind, 1);
+        config.set('adminRoles', roles, opts.guild);
+        data.react('👌');
+    }
+    else if (opts.args[0] == 'getadminroles') // Lists roles that can use admin commands
+    {
+        let roles = config.get('adminRoles');
+        let out = '';
+        
+        if (roles.length > 0)
+        {
+            
+            for (let i in roles)
+            {
+                let role = data.guild.roles.get(roles[i]);
+                
+                if (!role) continue;
+                
+                out += role.name;
+                if (i < roles.length-1) out += ', ';
+            }
+            data.reply(`Admin roles: **${out}**`);
+        }
+        else
+        {
+            data.reply('There are no admin roles specified');
+        }
+    }
     else if (opts.args[0] == 'setkeyword') // Changes keyword
     {
         config.set('verifyKeyword', opts.args[1], opts.guild);
