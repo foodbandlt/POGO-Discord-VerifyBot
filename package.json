@@ -9,7 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "deasync": "^0.1.13",
+    "deasync": "^0.1.19",
     "discord.js": "^11.3.2",
     "flip-text": "^1.1.0",
     "mysql": "^2.15.0",
