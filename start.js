@@ -18,13 +18,15 @@ config = new Config({
 });
 */
 
-/* global BADGE, config, client */
+/* global BADGE, config, client, mutedIDs */
 
 var BADGE = {
     time: 0,
     leaderID: '0',
     leaderName: ''
 };
+
+var mutedIDs = {};
 
 var config = new Config({
     commandCharacter: {
@@ -214,6 +216,10 @@ var config = new Config({
     mutedObj: {
         value: {ids: [], objs: []},
         type: 'json'
+    },
+    mutedRole: {
+        value: '',
+        type: 'string'
     }
     
 });
@@ -223,6 +229,11 @@ var client = new Discord.Client({disableEveryone: true});
 client.on('ready', () => 
 {
     console.log('ready!');
+    
+    client.guilds.forEach( (val) =>
+    {
+        doMute(val);
+    });
 });
 
 client.login(process.env.DISCORDAPIKEY).then(() =>
@@ -1614,6 +1625,12 @@ function processAdminCommand(data, opts)
             '\n**Admin commands**\n' +
 			'`'+ c + config.get('verifyKeyword', opts.guild) + ' @<username>` - Used to verify specific user.\n' +
 			'`'+ c + 'unverify @<username>` - Unverified user specified.  They must be tagged\n' +
+            '\n**Mute commands**\n' +
+            '`'+ c + 'mute @<username> <time> <reason>` - Mutes user for specified time\n' +
+            '`'+ c + 'unmute @<username>` - Unmutes user\n' +
+            '`'+ c + 'mutedetails @<username>` - Shows details of mute\n' +
+            '`'+ c + 'mutesetrole @<role>` - Sets muted role\n' +
+            '`'+ c + 'muteunsetrole` - Unsets muted role\n' +
             /*
             '\n**Raids**\n' +
 			'`'+ c + 'addboss <tier> <boss>` - Adds boss to specified tier\n' +
@@ -1725,6 +1742,150 @@ function processAdminCommand(data, opts)
         let num = unverifyAll(data);
         data.react('👌');
         data.reply('Everyone is being unverified');
+    }
+    
+    // *******************************
+    // MUTING COMMANDS
+    // *******************************
+    
+    else if (opts.args[0] == 'mute') // Unverify all current users
+    {
+        let muted = config.get('mutedObj', opts.guild);
+        let mutedRole = config.get('mutedRole', opts.guild);
+        let mem = data.mentions.members.first();
+		
+        if (!mem)
+        {
+            data.reply('I don\'t see a user mention in there anywhere');
+            return;
+        }
+        
+        if (opts.args.length <= 2)
+        {
+            data.reply('I don\'t see a time or reason in your message anywhere');
+            return;
+        }
+		
+		
+        if (muted.ids.indexOf(mem.id) > -1)
+        {
+            data.reply('User already muted, details:');
+            return;
+        }
+		
+        if (mutedRole == '')
+        {
+            data.reply('Muted role not setup, use mutesetrole');
+            return;
+        }
+		
+        // Someone was mentioned
+        // !mute user time reason
+        
+        let time = opts.args[2];
+        let obj = {
+            user: mem.id,
+            time: Date.now(),
+            banner: data.member.id,
+            reason: opts.args.length >= 3 ? opts.args.slice(3).join(' ') : '',
+            until: Date.now() + (time * 1000)
+        };
+		
+        mute(obj, data.guild, (error, mem) =>
+        {
+            data.reply(`**${mem.user.username}#${mem.user.discriminator} (${mem.displayName})** muted for ${time} seconds`);
+        });
+        
+    }
+    else if (opts.args[0] == 'unmute') // Unverify all current users
+    {
+        let muted = config.get('mutedObj', opts.guild);
+        let mutedRole = config.get('mutedRole', opts.guild);
+        let mem = data.mentions.members.first();
+		
+        if (!mem)
+        {
+            data.reply('I don\'t see a user mention in there anywhere');
+            return;
+        }
+		
+        if (mutedRole == '')
+        {
+            data.reply('Muted role not setup, use mutesetrole');
+            return;
+        }
+		
+        let ind = muted.ids.indexOf(mem.id);
+        
+        if (ind == -1)
+        {
+            data.reply('The user doesn\'t appear to be muted');
+            return;
+        }
+        
+        
+        
+        unmute(mem.id, data.guild, (error, mem) =>
+        {
+            console.log(`${mem.user.username}#${mem.user.discriminator} (${mem.displayName}) unmuted by ${data.author.username}#${data.author.discriminator}`);
+            data.react('👌');
+        });
+    }
+    else if (opts.args[0] == 'mutedetails') // Unverify all current users
+    {
+        let muted = config.get('mutedObj', opts.guild);
+        let mem = data.mentions.members.first();
+		
+        if (!mem)
+        {
+            data.reply('I don\'t see a user mention in there anywhere');
+            return;
+        }
+		
+        
+        let ind = muted.ids.indexOf(mem.id);
+		
+        if (ind == -1)
+        {
+            data.reply('User does not appear to be muted');
+            return;
+        }
+		
+        for (let i in muted.objs)
+        {
+            if (muted.objs[i].user == mem.id)
+            {
+                let obj = muted.objs[i];
+                let muteTime = (obj.until - obj.time) / 1000;
+                data.guild.fetchMember(obj.banner)
+                    .then( member =>
+                    {
+                        data.reply(`**${mem.user.username}#${mem.user.discriminator} (${mem.displayName})** muted ${new Date(obj.time)} by ${member.nickname} for ${muteTime} seconds\n**Reason:** ${obj.reason}`);
+                    });
+                break;
+            }
+        }
+        
+    }
+    
+    else if (opts.args[0] == 'mutesetrole') // Unverify all current users
+    {
+        let role = data.mentions.roles.first();
+		
+        if (!role)
+        {
+            data.reply('I don\'t see a role mention in there anywhere');
+            return;
+        }
+
+        config.set('mutedRole', role.id, opts.guild);
+        data.react('👌');
+    }
+    
+    else if (opts.args[0] == 'muteunsetrole') // Unverify all current users
+    {
+        config.set('mutedRole', '', opts.guild);
+        data.react('👌');
     }
     
     // *******************************
@@ -2976,6 +3137,19 @@ client.on('guildMemberAdd', (mem, error) =>
                 console.log(e);
             });
     }
+    
+    if ( config.get('mutedRole', mem.guild.id) != '')
+    {
+        // muting setup
+        let muted = config.get('mutedObj', mem.guild.id);
+        let mutedRole = config.get('mutedRole', mem.guild.id);
+        
+        if (muted.ids.indexOf(mem.id) > -1)
+        {
+            mem.addRole(mutedRole);
+            console.log(`Member ${mem.user.username}#${mem.user.discriminator} rejoined and was muted previously`);
+        }
+    }
 });
 /*
 function dmAllRaidSubs(data, arr, boss, tier, loc)
@@ -3028,8 +3202,151 @@ function testF(data)
 
 }
 
+function doMute(guild)
+{
+    console.log(`Starting doMute for guild ${guild.id}`);
+    cancelMuteTimer(guild);
+    
+    let gid = guild.id;
+    let muted = config.get('mutedObj', gid);
+    let mutedRole = config.get('mutedRole', gid);
+    
+    if (mutedRole == '')
+    {
+        console.log('Muted role not setup, not scheduling timer');
+        return;
+    }
+    
+    if (muted.objs.length == 0)
+    {
+        console.log('Nobody in muted obj, not scheduling timer');
+        return;
+    }
+
+    
+    
+    
+    
+    
+    let user = muted.objs[0];
+    let time = (user.until - Date.now());
+    time = time > 0 ? time : 0;
+    console.log(`doMute timeout set for ${time}`);
+    setTimeout( () =>
+    {
+        mutedIDs[gid] = 0;
+        
+        unmute(user.user, guild, (error, mem) =>
+        {
+            console.log(`Unmuted ${mem.user.username}#${mem.user.discriminator} based on timer`);
+        });
+    }, time);
+        
+}
+
+function cancelMuteTimer(guild)
+{
+    console.log('Cancelled doMute timer');
+    
+    if (mutedIDs[guild.id] != 0)
+        clearTimeout(mutedIDs[guild.id]);
+    mutedIDs[guild.id] = 0;
+}
+
+function mute(opts, guild, cb)
+{
+    console.log(`Starting to mute ${opts.user}`);
+    console.log(opts);
+    let muted = config.get('mutedObj', guild.id);
+    let mutedRole = config.get('mutedRole', guild.id);
+    
+    if (mutedRole == '')
+    {  
+        console.log('Role not setup, mute canceled');
+        return;
+    }
+    
+    guild.fetchMember(opts.user)
+        .then((mem) =>
+        {
+            mem.addRole(mutedRole);
+        
+        
+            if (muted.objs.length == 0)
+                muted.objs.push(opts);
+            else
+            {
+                for (let i in muted.objs)
+                {
+                    if (muted.objs[i].until > opts.until)
+                    {
+                        muted.objs.splice(i, 0, opts);
+                        break;
+                    }
+                
+                    if (i == muted.objs.length - 1)
+                        muted.objs.push(opts);
+                }
+            }
+            muted.ids.push(mem.id);
+            config.set('mutedObj', muted, guild.id);
+        
+            doMute(guild);
+            if (typeof cb == 'function')
+                cb(null, mem);
+        })
+        .catch( (err) =>
+        {
+            console.log(`Could not mute user ${err}`);
+        });
+}
+
+function unmute(userid, guild, cb)
+{
+    console.log(`Starting to unmute ${userid}`);
+    let muted = config.get('mutedObj', guild.id);
+    let mutedRole = config.get('mutedRole', guild.id);
+    
+    if (mutedRole == '')
+    {  
+        console.log('Role not setup, unmute canceled');
+        return;
+    }
+    
+    guild.fetchMember(userid)
+        .then((mem) =>
+        {
+            let ind = muted.ids.indexOf(mem.id);
+        
+            mem.removeRole(mutedRole);
+        
+            if (ind > -1)
+                muted.ids.splice(ind, 1);
+        
+            for (let i in muted.objs)
+            {
+                if (muted.objs[i].user == mem.id)
+                {
+                    muted.objs.splice(i, 1);
+                    break;
+                }
+            }
+        
+            config.set('mutedObj', muted, guild.id);
+        
+            doMute(guild);
+            if (typeof cb == 'function')
+                cb(null, mem);
+        })
+        .catch( (err) =>
+        {
+            console.log(`Could not unmute user ${err}`);
+        });
+}
+
 function dmAllUnverified(data)
 {
+    /*
     let guild = data.channel.guild.id;
 	
     console.log('DMing all users that aren\'t verified');
@@ -3062,10 +3379,12 @@ function dmAllUnverified(data)
     
 	
     return arrToAdd.length;
+    */
 }
 
 function dmAllUnverifiedRecursive(memArr)
 {
+    /*
     if (typeof memArr !== 'object' || memArr.length == 0)
     {
         console.log('DM all complete');
@@ -3089,6 +3408,7 @@ function dmAllUnverifiedRecursive(memArr)
             console.log('Unable to DM member: ' );
             console.log(e);
         });
+        */
 }
 
 function verifyAll(data)
