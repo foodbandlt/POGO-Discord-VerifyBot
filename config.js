@@ -122,6 +122,13 @@ Config.prototype.reset = function(key, guild){
 };
 
 Config.prototype.set = function(key, value, guild){
+    if (typeof key !== 'string' || typeof value === undefined || typeof guild === undefined)
+    {
+        console.log('Attempting to set config with undefined values');
+        console.log(`${key}  ${value}   ${guild}`);
+        return false;
+    }
+    
     if (typeof this.loadedConfig[guild] !== 'undefined' && typeof this.loadedConfig[guild][key] !== 'undefined'){
         this.loadedConfig[guild][key] = value;
         this.save(guild);
