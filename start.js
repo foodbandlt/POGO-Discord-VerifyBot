@@ -1778,11 +1778,19 @@ function processAdminCommand(data, opts)
             data.reply('Muted role not setup, use mutesetrole');
             return;
         }
+        
+        let time = parseInt(opts.args[2]);
+        
+        if (isNaN(time))
+        {
+            data.reply('I don\'t see a time in your message');
+            return;
+        }
 		
         // Someone was mentioned
         // !mute user time reason
         
-        let time = opts.args[2];
+        
         let obj = {
             user: mem.id,
             time: Date.now(),
@@ -3263,6 +3271,14 @@ function mute(opts, guild, cb)
     if (mutedRole == '')
     {  
         console.log('Role not setup, mute canceled');
+        return;
+    }
+    
+    if (opts.until - Date.Now() < 3000)
+    {
+        console.log('Can\'t mute for under 3 seconds');
+        if (typeof cb == 'function')
+            cb('time', null);
         return;
     }
     
