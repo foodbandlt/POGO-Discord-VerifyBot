@@ -3280,7 +3280,7 @@ function mute(opts, guild, cb)
         return;
     }
     
-    if (opts.until - Date.Now() < 3000)
+    if (opts.until - Date.now() < 3000)
     {
         console.log('Can\'t mute for under 3 seconds');
         if (typeof cb == 'function')
