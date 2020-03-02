@@ -351,7 +351,7 @@ client.on('guildCreate', (data, error) =>
 
 function processChatCommand(data)
 {
-    let adminRoles = config.get('adminRoles');
+    let adminRoles = config.get('adminRoles', data.guild.id);
     
     let gymAdmins = config.get('gymAdmins', data.guild.id);
     let isAdminRole = adminRoles.some( (i) => data.member.roles.has(i) );
@@ -1906,7 +1906,7 @@ function processAdminCommand(data, opts)
             return;
         }
         
-        let roles = config.get('adminRoles');
+        let roles = config.get('adminRoles', opts.guild);
         roles.push(data.mentions.roles.first().id);
         config.set('adminRoles', roles, opts.guild);
         data.react('👌');
@@ -1925,7 +1925,7 @@ function processAdminCommand(data, opts)
             return;
         }
         
-        let roles = config.get('adminRoles');
+        let roles = config.get('adminRoles', opts.guild);
         let ind = roles.indexOf(data.mentions.roles.first().id);
         
         if (ind == -1)
@@ -1940,7 +1940,7 @@ function processAdminCommand(data, opts)
     }
     else if (opts.args[0] == 'getadminroles') // Lists roles that can use admin commands
     {
-        let roles = config.get('adminRoles');
+        let roles = config.get('adminRoles', opts.guild);
         let out = '';
         
         if (roles.length > 0)
