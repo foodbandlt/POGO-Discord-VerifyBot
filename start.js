@@ -1801,6 +1801,12 @@ function processAdminCommand(data, opts)
 		
         mute(obj, data.guild, (error, mem) =>
         {
+            if (error && error == 'time')
+            {
+                data.reply('Time specified is too short!  You may as well just yell at them lmao');
+                return;
+            }
+            
             data.reply(`**${mem.user.username}#${mem.user.discriminator} (${mem.displayName})** muted for ${time} seconds`);
         });
         
