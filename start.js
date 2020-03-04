@@ -3245,16 +3245,30 @@ function doMute(guild)
     let user = muted.objs[0];
     let time = (user.until - Date.now());
     time = time > 0 ? time : 0;
-    console.log(`doMute timeout set for ${time}`);
-    setTimeout( () =>
+    
+    if (time > 2147483647)  // Max setTimeout time
     {
-        mutedIDs[gid] = 0;
-        
-        unmute(user.user, guild, (error, mem) =>
+        console.log(`doMute timeout interval too large: ${time}; Setting max timeout`);
+        mutedIDs[gid] = setTimeout( () =>
         {
-            console.log(`Unmuted ${mem.user.username}#${mem.user.discriminator} based on timer`);
-        });
-    }, time);
+            mutedIDs[gid] = 0;
+            
+            doMute(guild);
+        }, time);
+    }
+    else
+    {
+        console.log(`doMute timeout set for ${time}`);
+        mutedIDs[gid] = setTimeout( () =>
+        {
+            mutedIDs[gid] = 0;
+            
+            unmute(user.user, guild, (error, mem) =>
+            {
+                console.log(`Unmuted ${mem.user.username}#${mem.user.discriminator} based on timer`);
+            });
+        }, time);
+    }
         
 }
 
