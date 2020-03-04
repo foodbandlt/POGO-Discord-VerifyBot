@@ -370,7 +370,7 @@ function processChatCommand(data)
     };
     
     console.log('Chat command called');
-    console.log(data.author.username + '#' + data.author.discriminator + ' (' + (data.member ? data.member.nickname : '') + ') : ' + data.content);
+    console.log(data.author.username + '#' + data.author.discriminator + ' (' + (data.member ? data.member.displayName : '') + ') : ' + data.content);
 	
     
     
@@ -1626,7 +1626,9 @@ function processAdminCommand(data, opts)
 			'`'+ c + config.get('verifyKeyword', opts.guild) + ' @<username>` - Used to verify specific user.\n' +
 			'`'+ c + 'unverify @<username>` - Unverified user specified.  They must be tagged\n' +
             '\n**Mute commands**\n' +
-            '`'+ c + 'mute @<username> <time> <reason>` - Mutes user for specified time\n' +
+            '`'+ c + 'mute @<username> <time> <reason>` - Mutes user for specified time. Time format: `5s5m5h5d5mo`\n' +
+            '     Details: `5s`: 5 second, `5m`: 5 minutes, `5h`: 5 hours, `5d`: 5 days, `5mo`: 5 months.\n' +
+            '     **Omit any unused time periods.  `5s5d`: 5 days and 5 seconds**\n' +
             '`'+ c + 'unmute @<username>` - Unmutes user\n' +
             '`'+ c + 'mutedetails @<username>` - Shows details of mute\n' +
             '`'+ c + 'mutesetrole @<role>` - Sets muted role\n' +
@@ -1786,6 +1788,22 @@ function processAdminCommand(data, opts)
             data.reply('I don\'t see a time in your message');
             return;
         }
+        
+        if (time.toString().length != opts.args[2].length)
+        {
+            // Time string is more complex
+            time = getMilliFromString(opts.args[2]);
+        }
+        else
+        {
+            time *= 1000;
+        }
+        
+        if (time == 0)
+        {
+            data.reply('I don\'t see a time in your message');
+            return;
+        }
 		
         // Someone was mentioned
         // !mute user time reason
@@ -1796,7 +1814,7 @@ function processAdminCommand(data, opts)
             time: Date.now(),
             banner: data.member.id,
             reason: opts.args.length >= 3 ? opts.args.slice(3).join(' ') : '',
-            until: Date.now() + (time * 1000)
+            until: Date.now() + time
         };
 		
         mute(obj, data.guild, (error, mem) =>
@@ -1807,7 +1825,7 @@ function processAdminCommand(data, opts)
                 return;
             }
             
-            data.reply(`**${mem.user.username}#${mem.user.discriminator} (${mem.displayName})** muted for ${time} seconds`);
+            data.reply(`**${mem.user.username}#${mem.user.discriminator} (${mem.displayName})** muted for ${milliToString(time)}`);
         });
         
     }
@@ -1870,11 +1888,11 @@ function processAdminCommand(data, opts)
             if (muted.objs[i].user == mem.id)
             {
                 let obj = muted.objs[i];
-                let muteTime = (obj.until - obj.time) / 1000;
+                let muteTime = (obj.until - obj.time);
                 data.guild.fetchMember(obj.banner)
                     .then( member =>
                     {
-                        data.reply(`**${mem.user.username}#${mem.user.discriminator} (${mem.displayName})** muted ${new Date(obj.time)} by ${member.nickname} for ${muteTime} seconds\n**Reason:** ${obj.reason}`);
+                        data.reply(`**${mem.user.username}#${mem.user.discriminator} (${mem.displayName})** muted ${new Date(obj.time)} by ${member.displayName} for ${milliToString(muteTime)}\n**Reason:** ${obj.reason}`);
                     });
                 break;
             }
@@ -3254,7 +3272,7 @@ function doMute(guild)
             mutedIDs[gid] = 0;
             
             doMute(guild);
-        }, time);
+        }, 2147483646);
     }
     else
     {
@@ -3378,6 +3396,132 @@ function unmute(userid, guild, cb)
         {
             console.log(`Could not unmute user ${err}`);
         });
+}
+
+function getMilliFromString(input)
+{
+    if (typeof input !== 'string')
+        return 0;
+    
+    let output = 0;
+    
+    let sreg = /(\d+)s(?:\d|$)/i;
+    let mreg = /(\d+)m(?:\d|$)/i;
+    let hreg = /(\d+)h(?:\d|$)/i;
+    let dreg = /(\d+)d(?:\d|$)/i;
+    let moreg = /(\d+)mo(?:\d|$)/i;
+    
+    let sIn = input.match(sreg);
+    let mIn = input.match(mreg);
+    let hIn = input.match(hreg);
+    let dIn = input.match(dreg);
+    let moIn = input.match(moreg);
+    
+    if (sIn)
+    {
+        let num = parseInt(sIn[1]);
+        if (!isNaN(num))
+        {
+            output += num * 1000;
+        }
+    }
+    
+    if (mIn)
+    {
+        let num = parseInt(mIn[1]);
+        if (!isNaN(num))
+        {
+            output += num * 60 * 1000;
+        }
+    }
+    
+    if (hIn)
+    {
+        let num = parseInt(hIn[1]);
+        if (!isNaN(num))
+        {
+            output += num * 60 * 60 * 1000;
+        }
+    }
+    
+    if (dIn)
+    {
+        let num = parseInt(dIn[1]);
+        if (!isNaN(num))
+        {
+            output += num * 24 * 60 * 60 * 1000;
+        }
+    }
+    
+    if (moIn)
+    {
+        let num = parseInt(moIn[1]);
+        if (!isNaN(num))
+        {
+            output += num * 30 * 24 * 60 * 60 * 1000;
+        }
+    }
+    
+    return output;
+}
+
+function milliToString(input)
+{
+    if (typeof input !== 'number')
+        return '';
+    
+    let output = '';
+    let year = 365*24*60*60*1000;
+    let month = 30*24*60*60*1000;
+    let day = 24*60*60*1000;
+    let hour = 60*60*1000;
+    let minute = 60*1000;
+    let second = 1000;
+    let temp = 0;
+    
+    temp = Math.trunc(input/year);
+    if (temp > 0)
+    {
+        input -= temp * year;
+        output += `${temp} year${temp > 1 ? 's': ''}, `;
+    }
+    
+    temp = Math.trunc(input/month);
+    if (temp > 0)
+    {
+        input -= temp * month;
+        output += `${temp} month${temp > 1 ? 's': ''}, `;
+    }
+    
+    temp = Math.trunc(input/day);
+    if (temp > 0)
+    {
+        input -= temp * day;
+        output += `${temp} day${temp > 1 ? 's': ''}, `;
+    }
+    
+    temp = Math.trunc(input/hour);
+    if (temp > 0)
+    {
+        input -= temp * hour;
+        output += `${temp} hour${temp > 1 ? 's': ''}, `;
+    }
+    
+    temp = Math.trunc(input/minute);
+    if (temp > 0)
+    {
+        input -= temp * minute;
+        output += `${temp} minute${temp > 1 ? 's': ''}, `;
+    }
+    
+    temp = Math.trunc(input/second);
+    if (temp > 0)
+    {
+        input -= temp * second;
+        output += `${temp} second${temp > 1 ? 's': ''}, `;
+    }
+    
+    return output.trim().slice(0,-1);
 }
 
 function dmAllUnverified(data)
