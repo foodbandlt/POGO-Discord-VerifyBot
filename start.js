@@ -3384,7 +3384,7 @@ function makeMuteEmbed(opts, banner, user)
         .addField('User', `${user}`, true)
         .addField('Length', `${milliToString(muteTime)}`, true)
         .addField('Reason', `${opts.reason || 'None'}`)
-        .addField('Unban Date', `${muteUntil.toLocaleString()}`)
+        .addField('Unban Date', `${muteUntil.toLocaleString('en-US', {timezone: 'America/New_York'})}`)
         .setTimestamp(opts.time);
         
     return mess;
