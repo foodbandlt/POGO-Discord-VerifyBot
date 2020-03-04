@@ -3375,6 +3375,11 @@ function makeMuteEmbed(opts, banner, user)
 {
     let muteTime = (opts.until - opts.time);
     let muteUntil = new Date(opts.until);
+    
+    if (muteUntil.isDstObserved())
+    {
+        muteUntil.setUTCHours( muteUntil.getUTCHours() - 1 );
+    }
                 
     let mess = new Discord.MessageEmbed()
         .setTitle('Mute Details')
@@ -3384,7 +3389,7 @@ function makeMuteEmbed(opts, banner, user)
         .addField('User', `${user}`, true)
         .addField('Length', `${milliToString(muteTime)}`, true)
         .addField('Reason', `${opts.reason || 'None'}`)
-        .addField('Unban Date', `${muteUntil.toLocaleString('en-US', {timeZone: 'America/New_York'})}`)
+        .addField('Unmute Date', `${muteUntil.toLocaleString('en-US', {timeZone: 'America/New_York'})}`)
         .setTimestamp(opts.time);
         
     return mess;
@@ -3837,5 +3842,16 @@ function getBadges(badges, id)
 function hasBadge(badges, type, id)
 {
     return (typeof badges[type][id] !== 'undefined');
+}
+// from https://stackoverflow.com/questions/11887934/how-to-check-if-the-dst-daylight-saving-time-is-in-effect-and-if-it-is-whats
+
+Date.prototype.stdTimezoneOffset = function () {
+    var jan = new Date(this.getFullYear(), 0, 1);
+    var jul = new Date(this.getFullYear(), 6, 1);
+    return Math.max(jan.getTimezoneOffset(), jul.getTimezoneOffset());
+}
+
+Date.prototype.isDstObserved = function () {
+    return this.getTimezoneOffset() < this.stdTimezoneOffset();
 }
 	
