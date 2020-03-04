@@ -3376,7 +3376,7 @@ function makeMuteEmbed(opts, banner, user)
     let muteTime = (opts.until - opts.time);
     let muteUntil = new Date(opts.until);
     
-    if (muteUntil.isDstObserved())
+    if (!muteUntil.isDstObserved())
     {
         muteUntil.setUTCHours( muteUntil.getUTCHours() - 1 );
     }
