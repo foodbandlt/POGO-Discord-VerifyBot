@@ -109,6 +109,16 @@ Config.prototype.insertNewKey = function(key, value, guild){
     }
 };
 
+Config.prototype.getDefault = function(key){
+    if (typeof this.defaultConfig[key] != 'undefined')
+    {
+        return this.defaultConfig[key].value;
+    }
+    
+    console.log('Config value ' + key + 'not found in default object');
+    return false;
+};
+
 Config.prototype.reset = function(key, guild){
     if (this.get(key, guild) !== 'undefined')
     {
@@ -158,6 +168,30 @@ Config.prototype.get = function(key, guild){
     }
     console.log('Config key ' + key + ' not found in loaded or default object');
     return 'undefined';
+};
+
+Config.prototype.getNonDefaultGuilds = function(key){
+    let output = [];
+    
+    if (typeof this.defaultConfig[key] !== 'undefined'){
+        for (let i in this.loadedConfig)
+        {
+            let val = this.get(key, i);
+            let def = this.defaultConfig[key].value;
+            if (this.defaultConfig[key].type == 'json')
+            {
+                val = JSON.stringify(val);
+                def = JSON.stringify(def);
+            }
+            
+            if (val != def)
+                output.push(i);
+        }
+        
+        return output;
+    }
+    console.log('Config key ' + key + ' not found in loaded or default object');
+    return null;
 };
 
 Config.prototype.load = function(){

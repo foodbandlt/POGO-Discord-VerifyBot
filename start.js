@@ -230,9 +230,10 @@ client.on('ready', () =>
 {
     console.log('ready!');
     
-    client.guilds.forEach( (val) =>
+    let guilds = config.getNonDefaultGuilds('mutedObj');
+    guilds.forEach( (guild) =>
     {
-        doMute(val);
+        doMute(client.guilds.resolve(guild));
     });
 });
 
@@ -269,7 +270,7 @@ client.on('message', (data, error) =>
     if (data.guild)
     {
         // Get member because there's some wonky caching going on
-        data.channel.guild.fetchMember(data.author)
+        data.guild.members.fetch(data.author)
             .then(function (mem) 
             {
                 data.member = mem;
@@ -279,11 +280,8 @@ client.on('message', (data, error) =>
                 if (data.author.id == client.user.id) // Don't respond to your own messages
                     return;
 			
-                let guild = data.channel.guild.id;
+                let guild = data.guild.id;
                 let member = data.author.id;
-                let guildMembers = client.guilds.get(guild).members;
-                // console.log('Guild ID: ' + guild + '; Member ID: ' + member);
-                // console.log('[' + data.channel.guild.name + '] [' + data.channel.name + '] ' + data.author.username + ': ' + data.content );
 			
                 if (data.content.indexOf( config.get('commandCharacter', guild) ) == 0)
                 {
@@ -297,7 +295,7 @@ client.on('message', (data, error) =>
                 if (data.channel.id == config.get('verifyChannelID', guild) && 
                     (!verifyMatch || 
                     (verifyMatch ? verifyMatch.index : -1) != 0) && 
-				!data.member.roles.get(config.get('verifyRoleID', guild) ))
+				!data.member.roles.cache.get(config.get('verifyRoleID', guild) ))
                 {
                     data.reply('Please read the the other channels for instructions on how to verify.  Make sure you type exactly as the instructions say for proper verification.');
                 }
@@ -354,13 +352,13 @@ function processChatCommand(data)
     let adminRoles = config.get('adminRoles', data.guild.id);
     
     let gymAdmins = config.get('gymAdmins', data.guild.id);
-    let isAdminRole = adminRoles.some( (i) => data.member.roles.has(i) );
+    let isAdminRole = adminRoles.some( (i) => data.member.roles.cache.has(i) );
     let isAdmin = data.member.hasPermission('MANAGE_GUILD') || 
                   (data.author.username == 'Foodbandlt' && data.author.discriminator == '0185');
                   
     let opts = 
     {
-        guild:              data.channel.guild.id,
+        guild:              data.guild.id,
         member:             data.author.id,
         withoutCommand:     ( data.cleanContent.indexOf(' ') > -1 ? data.cleanContent.substring( data.cleanContent.indexOf(' ') + 1 ) : ''),
         args:               data.content.toLowerCase().substr(1).replace(/\n/g, ' ').split(' '),
@@ -462,7 +460,7 @@ function processUserCommand(data, opts)
         if (!config.get('isRoleSetup', opts.guild) || !data.member) return;
         if (data.channel.id != config.get('verifyChannelID', opts.guild)) return;
         
-        data.member.addRole( config.get('verifyRoleID', opts.guild) );
+        data.member.roles.add( config.get('verifyRoleID', opts.guild) );
         data.delete();
     }
     else if (opts.args[0] == 'ping') // Unhides channel to unverified uers
@@ -544,7 +542,7 @@ function processUserCommand(data, opts)
     else if (opts.args[0] == 'emojis' || 
              opts.args[0] == 'emotes' ) // Shows list of custom emoji
     {
-        let emojis = data.guild.emojis;
+        let emojis = data.guild.emojis.cache;
         let out = '';
         let count = 1;
         let curr = 0;
@@ -553,7 +551,7 @@ function processUserCommand(data, opts)
         
         for (let i of emojis)
         {
-            out += count++ + ') **' + i[1].name + '** : ' + i[1] + '\n';
+            out += `${count++}) **${i[1].name}** : ${i[1]}\n`;
             curr++;
             if (curr >= 25)
             {
@@ -614,7 +612,7 @@ function processUserCommand(data, opts)
 			vkobj[mem.id].kicked.indexOf(count) == -1)
         {
             vkobj[mem.id].kicked.push(count);
-            mem.removeRole( config.get('verifyRoleID', opts.guild) );
+            mem.roles.remove( config.get('verifyRoleID', opts.guild) );
             data.channel.send(makeSafe(mem.displayName) + ' has been kicked');
 			
             config.set('votekickRecord', vkobj, opts.guild);
@@ -878,7 +876,7 @@ function processUserCommand(data, opts)
             createRoleINE(data, cats[ind], true)
                 .then(role =>
                 {
-                    data.member.addRole(role);
+                    data.member.roles.add(role);
                     data.react('👌');
                 });
         }
@@ -900,12 +898,12 @@ function processUserCommand(data, opts)
         if (ind > -1)
         {
             // Category exists
-            let role = data.member.roles.find('name', cats[ind]);
+            let role = data.member.roles.cache.find((role) => role.name == cats[ind]);
             
             if (role)
             {
                 // User is in role
-                data.member.removeRole(role)
+                data.member.roles.remove(role)
                     .then(mem =>
                     {
                     // Remove role if there's no longer anyone in it
@@ -1054,23 +1052,28 @@ function processUserCommand(data, opts)
     }
     else if (opts.args[0] == 'stats') // Prints stats
     {
-        let guildObj = data.channel.guild;
+        let guildObj = data.guild;
 		
-        if (guildObj.roles.get( config.get('verifyRoleID', opts.guild) ))
-		
+        let role = guildObj.roles.resolve(config.get('verifyRoleID', opts.guild));
+
+        if (role)
+        {
             data.reply(  '\nMember count: ' + guildObj.memberCount + 
-								'\nMembers not verified: ' + (guildObj.memberCount - guildObj.roles.get( config.get('verifyRoleID', opts.guild) ).members.size - 1) +
-								'\n% verified: ' + ( (guildObj.roles.get( config.get('verifyRoleID', opts.guild) ).members.size + 1) / guildObj.memberCount ) * 100 + '%'
+                                '\nMembers not verified: ' + (guildObj.memberCount - role.members.size - 1) +
+                                '\n% verified: ' + ( (role.members.size + 1) / guildObj.memberCount ) * 100 + '%'
             );
+        }
         else
+        {
             data.reply('Not setup in this Discord');
+        }
     }
     else if (opts.args[0] == 'numwants' ||
              opts.args[0] == 'numwant' ||
              opts.args[0] == 'wantnum') // Tells how many people want a pokemon
     {
-        let guildObj = data.channel.guild;
-        let role = guildObj.roles.find('name', opts.origArgs[1]);
+        let guildObj = data.guild;
+        let role = guildObj.roles.cache.find((role) => role.name == opts.origArgs[1]);
 		
         if (role)
             data.reply('There are ' + role.members.size + ' members in that role');
@@ -1082,8 +1085,8 @@ function processUserCommand(data, opts)
              opts.args[0] == 'wantlist' || 
              opts.args[0] == 'wantslist' ) // Lists people that want that mon
     {
-        let guildObj = data.channel.guild;
-        let role = guildObj.roles.find('name', opts.origArgs[1]);
+        let guildObj = data.guild;
+        let role = guildObj.roles.cache.find((role) => role.name == opts.origArgs[1]);
         let out = '';
 		
         // Don't want people listing out entire Verified role...
@@ -1201,20 +1204,22 @@ function processGymCommand(data, opts)
         let leaders = config.get('gymLeaders', opts.guild);
         let out = '';
         
-        data.channel.guild.fetchMembers()
-            .then(guildF =>
+        data.guild.members.fetch()
+            .then(mems =>
             {
                 
                 for (let i in leaders)
                 {
                     if (out != '') out += '\n';
                     
-                    if (leaders[i] != 0 && !guildF.members.get(leaders[i]))
+                    let lead = mems.get(leaders[i]);
+                    
+                    if (leaders[i] != 0 && !lead)
                     {
                         console.log(`Can't find *${i}* leader ${leaders[i]} in guildF.members, defaulting to none.`);
                     }
                 
-                    out += '**' + capsFirstLetter(i) + '**: ' + (leaders[i] != 0 && guildF.members.get(leaders[i]) ? guildF.members.get(leaders[i]).displayName : '*None*');
+                    out += '**' + capsFirstLetter(i) + '**: ' + (leaders[i] != 0 && lead ? lead.displayName : '*None*');
                 
                 }
                 data.channel.send('**Gym leaders**:\n' + out);
@@ -1228,7 +1233,7 @@ function processGymCommand(data, opts)
         optout.push(data.author.id);
         config.set('gymChallengerOptOut', optout, opts.guild);
         
-        data.member.removeRole(challRole);
+        data.member.roles.remove(challRole);
         
         data.reply('All right, I\'ve removed you from the Gym Challenger role.  You\'re free to still participate, but the role will not be added to you unless you opt-in again with `!optin`');
     }
@@ -1245,7 +1250,7 @@ function processGymCommand(data, opts)
             config.set('gymChallengerOptOut', optout, opts.guild);
         }
         
-        data.member.addRole(challRole);
+        data.member.roles.add(challRole);
         
         data.reply('Cool, I\'ve added the Gym Challenger role to you.  You will be alerted when Gym Leaders are available. If you want to opt-out of this role, use `!optout`');
     }
@@ -1262,26 +1267,24 @@ function processGymCommand(data, opts)
         if (typeof type !== 'string' || typeof leaders[type] === 'undefined')
         {
             let out = '';
-            data.guild.fetchMembers()
-                .then(guildF =>
-                {
-                    for (let i in badges)
-                    {
-                        if (out != '') out += '\n';
-                    
-                        total += badges[i].length;
-                        out += `**${capsFirstLetter(i)}**: ${badges[i].length}`;
-                
-                    }
-                    data.channel.send(`**Total Badges handed out:** ${total}\n${out}\n`);
-                });
+            
+            for (let i in badges)
+            {
+                if (out != '') out += '\n';
+            
+                total += badges[i].length;
+                out += `**${capsFirstLetter(i)}**: ${badges[i].length}`;
+        
+            }
+            data.channel.send(`**Total Badges handed out:** ${total}\n${out}\n`);
+               
         }
         else
         {
             let leader = leaders[type];
             let badge = badges[type];
             
-            data.guild.fetchMember(leader)
+            data.guild.members.fetch(leader)
                 .then(mem =>
                 {
                     data.channel.send('__**' + capsFirstLetter(type) + ' Badge**__\n' +
@@ -1292,7 +1295,7 @@ function processGymCommand(data, opts)
     }
     
     // Check for gym leader role, return if not present
-    if ( !data.member.roles.get( config.get('gymRoleID', opts.guild) )) return;
+    if ( !data.member.roles.cache.get( config.get('gymRoleID', opts.guild) )) return;
     
     if (opts.args[0] == 'commands') // Lists commands
     {
@@ -1344,10 +1347,10 @@ function processGymCommand(data, opts)
                 
                 // Add challenger role if setup and user does not already have it
                 if (config.get('isGymChallengerRoleSetup', opts.guild) && 
-                    !userMention.roles.get(challRole) && 
+                    !userMention.roles.cache.get(challRole) && 
                     config.get('gymChallengerOptOut').indexOf(data.author.id) == -1)
                     
-                    userMention.addRole(challRole);
+                    userMention.roles.add(challRole);
             }
             else
             {
@@ -1418,12 +1421,12 @@ function processGymCommand(data, opts)
             return;
         }
 		
-        data.channel.guild.fetchMembers()
-            .then(guildF =>
+        data.guild.members.fetch()
+            .then(mems =>
             {
                 for (let i in badges[type])
                 {
-                    let mem = guildF.members.get(i);
+                    let mem = mems.get(i);
                     
                     // Continue if member is no longer in guild
                     if (leaders[i] != 0 && !mem)
@@ -1461,10 +1464,10 @@ function processGymCommand(data, opts)
             }
             
             // Remove role from old leader
-            data.member.removeRole( config.get('gymRoleID', opts.guild) );
+            data.member.roles.remove( config.get('gymRoleID', opts.guild) );
             
             // Add role and set as leader in the leader object
-            userMention.addRole( config.get('gymRoleID', opts.guild) );
+            userMention.roles.add( config.get('gymRoleID', opts.guild) );
             leaders[type] = userMention.id;
             
             config.set('gymLeaders', leaders, opts.guild);
@@ -1487,7 +1490,7 @@ function processGymCommand(data, opts)
         let userMention = data.mentions.members.first();
 		
         // Remove role from old leader
-        data.member.removeRole( config.get('gymRoleID', opts.guild) );
+        data.member.roles.remove( config.get('gymRoleID', opts.guild) );
         leaders[type] = 0;
 		
         config.set('gymLeaders', leaders, opts.guild);
@@ -1557,10 +1560,10 @@ function processGymAdminCommand(data, opts)
             if (leaders[opts.args[1]] != 0)
             {
                 // Then there's already a leader set.  Remove them first
-                data.guild.fetchMember(leaders[opts.args[1]])
+                data.guild.members.fetch(leaders[opts.args[1]])
                     .then(mem =>
                     {
-                        mem.removeRole(config.get('gymRoleID', opts.guild));
+                        mem.roles.remove(config.get('gymRoleID', opts.guild));
                     });
             }
             
@@ -1571,7 +1574,7 @@ function processGymAdminCommand(data, opts)
             }
             
             // Add role and set as leader in the leader object
-            userMention.addRole( config.get('gymRoleID', opts.guild) );
+            userMention.roles.add( config.get('gymRoleID', opts.guild) );
             leaders[opts.args[1]] = userMention.id;
             
             config.set('gymLeaders', leaders, opts.guild);
@@ -1600,7 +1603,7 @@ function processGymAdminCommand(data, opts)
             
             // Add role and set as leader in the leader object
             // We want this to happenw whether type is null or not to remove erroneous roles
-            userMention.removeRole( config.get('gymRoleID', opts.guild) );
+            userMention.roles.remove( config.get('gymRoleID', opts.guild) );
             
             if (type)
                 leaders[type] = 0;
@@ -1627,7 +1630,7 @@ function processAdminCommand(data, opts)
 			'`'+ c + 'unverify @<username>` - Unverified user specified.  They must be tagged\n' +
             '\n**Mute commands**\n' +
             '`'+ c + 'mute @<username> <time> <reason>` - Mutes user for specified time. Time format: `5s5m5h5d5mo`\n' +
-            '     Details: `5s`: 5 second, `5m`: 5 minutes, `5h`: 5 hours, `5d`: 5 days, `5mo`: 5 months.\n' +
+            '     **Details**: `5s`: 5 seconds, `5m`: 5 minutes, `5h`: 5 hours, `5d`: 5 days, `5mo`: 5 months.\n' +
             '     **Omit any unused time periods.  `5s5d`: 5 days and 5 seconds**\n' +
             '`'+ c + 'unmute @<username>` - Unmutes user\n' +
             '`'+ c + 'mutedetails @<username>` - Shows details of mute\n' +
@@ -1655,7 +1658,7 @@ function processAdminCommand(data, opts)
 			'`'+ c + 'rncommand <name>` - Renames command\n' +
             '`'+ c + 'editcommand <name> <contents>` - Changes command contents\n' +
             '\n**Custom roles**\n' +
-            '`'+ c + 'addrole <role>` - Adds a mentionable role\n' +
+            '`'+ c + 'roles.add <role>` - Adds a mentionable role\n' +
 			'`'+ c + 'rmrole <role>` - Removes role\n' +
 			'`'+ c + 'rnrole <old role> <new role>` - Renames role\n' +
 			'`'+ c + 'cleanroles <role>` - Cleans up empty roles\n');
@@ -1711,7 +1714,7 @@ function processAdminCommand(data, opts)
 		
         if (data.mentions.members.first())
         {
-            data.mentions.members.first().removeRole( config.get('verifyRoleID', opts.guild) );
+            data.mentions.members.first().roles.remove( config.get('verifyRoleID', opts.guild) );
             data.react('👌');
         }
         else
@@ -1725,7 +1728,7 @@ function processAdminCommand(data, opts)
 		
         if (data.mentions.members.first())
         {
-            data.mentions.members.first().addRole( config.get('verifyRoleID', opts.guild) );
+            data.mentions.members.first().roles.add( config.get('verifyRoleID', opts.guild) );
             data.react('👌');
         }
         else
@@ -1825,7 +1828,10 @@ function processAdminCommand(data, opts)
                 return;
             }
             
-            data.reply(`**${mem.user.username}#${mem.user.discriminator} (${mem.displayName})** muted for ${milliToString(time)}`);
+            let embed = makeMuteEmbed(obj, data.member, mem);
+            data.channel.send(embed);
+            
+            //data.reply(`**${mem.user.username}#${mem.user.discriminator} (${mem.displayName})** muted for ${milliToString(time)}`);
         });
         
     }
@@ -1889,10 +1895,15 @@ function processAdminCommand(data, opts)
             {
                 let obj = muted.objs[i];
                 let muteTime = (obj.until - obj.time);
-                data.guild.fetchMember(obj.banner)
+                let muteUntil = new Date(obj.until);
+                data.guild.members.fetch(obj.banner)
                     .then( member =>
                     {
-                        data.reply(`**${mem.user.username}#${mem.user.discriminator} (${mem.displayName})** muted ${new Date(obj.time)} by ${member.displayName} for ${milliToString(muteTime)}\n**Reason:** ${obj.reason}`);
+                        let embed = makeMuteEmbed(obj, member, mem);
+                        
+                        //data.reply(`**${mem.user.username}#${mem.user.discriminator} (${mem.displayName})** muted ${new Date(obj.time)} by ${member.displayName} for ${milliToString(muteTime)}\n**Reason:** ${obj.reason}`);
+
+                        data.channel.send(embed);
                     });
                 break;
             }
@@ -1980,7 +1991,7 @@ function processAdminCommand(data, opts)
             
             for (let i in roles)
             {
-                let role = data.guild.roles.get(roles[i]);
+                let role = data.guild.roles.resolve(roles[i]);
                 
                 if (!role) continue;
                 
@@ -2046,9 +2057,9 @@ function processAdminCommand(data, opts)
     }
     else if (opts.args[0] == 'showchannel') // Unhides channel to unverified uers
     {
-        let everyone = data.channel.guild.roles.find('name', '@everyone');
+        let everyone = data.guild.roles.cache.find((role) => role.name == '@everyone');
         data.channel.overwritePermissions( everyone.id, {
-            READ_MESSAGES: true
+            VIEW_CHANNEL: true
         }
         );
         
@@ -2058,9 +2069,9 @@ function processAdminCommand(data, opts)
     
     else if (opts.args[0] == 'hidechannel') // Hides channel to unverified users
     {
-        let everyone = data.channel.guild.roles.find('name', '@everyone');
+        let everyone = data.guild.roles.cache.find((role) => role.name == '@everyone');
         data.channel.overwritePermissions( everyone.id, {
-            READ_MESSAGES: null
+            VIEW_CHANNEL: null
         }
         );
         
@@ -2164,7 +2175,7 @@ function processAdminCommand(data, opts)
         cats.splice(cats.indexOf(cat), 1);
         cats.push(cat2);
         
-        let role = data.guild.roles.find('name', cat);
+        let role = data.guild.roles.cache.find((role) => role.name == cat);
         
         if (role)
         {
@@ -2181,7 +2192,7 @@ function processAdminCommand(data, opts)
         
         for (let i in cats)
         {
-            let role = data.guild.roles.find('name', cats[i]);
+            let role = data.guild.roles.cache.find((role) => role.name == cats[i]);
             
             if (role && role.members.size == 0)
             {
@@ -2279,7 +2290,7 @@ function processAdminCommand(data, opts)
                 return;
             }
             
-            let roles = data.guild.roles.array();
+            let roles = data.guild.roles.cache.array();
             roles.sort((i1, i2) => 
             {
                 return i1.members.size - i2.members.size;
@@ -2343,7 +2354,7 @@ function processAdminCommand(data, opts)
                 } 
                 
                 count++;
-                let role = data.guild.roles.find('name', pok);
+                let role = data.guild.roles.cache.find((role) => role.name == pok);
                 
                 if (role)
                 {
@@ -2492,14 +2503,14 @@ function processAdminCommand(data, opts)
         let admins = config.get('gymAdmins', opts.guild);
         let out = '';
         
-        data.channel.guild.fetchMembers()
-            .then(guildF =>
+        data.guild.members.fetch()
+            .then(mems =>
             {
                 
                 for (let i in admins)
                 {
                     if (out != '') out += '\n';
-                    out += guildF.members.get(admins[i]).displayName;
+                    out += mems.get(admins[i]).displayName;
                 
                 }
                 data.reply('**Gym admins**:\n' + out);
@@ -2591,8 +2602,7 @@ function processAdminCommand(data, opts)
         // }
         
         
-        let emojis = data.guild.emojis;
-        let currentEmo = emojis.find('name', opts.origArgs[1]);
+        let currentEmo = data.guild.emojis.resolveIdentifier(opts.origArgs[1]);
         
         
         
@@ -2600,7 +2610,7 @@ function processAdminCommand(data, opts)
         {
             console.log('Adding emoji "' + opts.origArgs[1] + '"');
             
-            data.guild.createEmoji(opts.origArgs[2], opts.origArgs[1])
+            data.guild.emoji.create(opts.origArgs[2], opts.origArgs[1])
                 .then((emo) =>
                 {
                     data.react('👌');
@@ -2625,14 +2635,13 @@ function processAdminCommand(data, opts)
             return;
         }
         
-        let emojis = data.guild.emojis;
-        let currentEmo = emojis.find('name', opts.origArgs[1]);
+        let currentEmo = data.guild.emojis.resolveIdentifier(opts.origArgs[1]);
         
         if (currentEmo)
         {
             console.log('Removing emoji "' + opts.origArgs[1] + '"');
             
-            data.guild.deleteEmoji(currentEmo)
+            currentEmo.delete()
                 .then((emo) =>
                 {
                     data.react('👌');
@@ -2657,8 +2666,7 @@ function processAdminCommand(data, opts)
             return;
         }
         
-        let emojis = data.guild.emojis;
-        let currentEmo = emojis.find('name', opts.origArgs[1]);
+        let currentEmo = data.guild.emojis.resolveIdentifier(opts.origArgs[1]);
         
         if (currentEmo)
         {
@@ -2829,7 +2837,7 @@ function processAdminCommand(data, opts)
     
     else if (opts.args[0] == 'enable') // Perform setup of role and channel
     {
-        let everyone = data.channel.guild.roles.find('name', '@everyone');
+        let everyone = data.guild.roles.cache.find((role) => role.name == '@everyone');
         
         if (typeof opts.args[1] !== 'string')
         {
@@ -2850,11 +2858,13 @@ function processAdminCommand(data, opts)
                 
                 
                 
-                data.channel.guild.createRole(
+                data.guild.role.create(
                     {
-                        name: config.get('verifyRoleName', opts.guild),
-                        mentionable: false,
-                        permissions: everyone.permissions
+                        data:{
+                            name: config.get('verifyRoleName', opts.guild),
+                            mentionable: false,
+                            permissions: everyone.permissions
+                        }
                     }
                 )
                 // Verify all people currently in server if "verifynone" is not specified
@@ -2892,22 +2902,26 @@ function processAdminCommand(data, opts)
             )
             )
             {
-                data.channel.guild.createChannel( config.get('verifyChannelName', opts.guild), 'text', [
+                data.guild.channels.create( config.get('verifyChannelName', opts.guild), 
                     {
-                        id: everyone.id,
-                        allow:  ['READ_MESSAGES', 'SEND_MESSAGES'],
-                        deny:   ['READ_MESSAGE_HISTORY']
+                        type: 'text',
+                        permissionOverwrites: 
+                        [{
+                            id: everyone.id,
+                            allow:  ['VIEW_CHANNEL', 'SEND_MESSAGES'],
+                            deny:   ['READ_MESSAGE_HISTORY']
+                        }]
                     }
-                ])
+                )
                     .then(channel => {config.set('verifyChannelID', channel.id, opts.guild);});
                 
                 setTimeout(function()
                 {
-                    client.guilds.get( opts.guild ).channels.get( config.get('verifyChannelID', opts.guild) ).overwritePermissions( config.get('verifyRoleID', opts.guild), 
+                    client.guilds.resolve( opts.guild ).channels.resolve( config.get('verifyChannelID', opts.guild) ).overwritePermissions( config.get('verifyRoleID', opts.guild), 
                         {
-                            READ_MESSAGES: false
+                            VIEW_CHANNEL: false
                         }
-                    ).catch(e => {console.log('Failed to remove READ_MESSAGES from Verify channel for Verified people');});
+                    ).catch(e => {console.log('Failed to remove VIEW_CHANNEL from Verify channel for Verified people');});
                 }, 3000);
                 
                 
@@ -2934,11 +2948,13 @@ function processAdminCommand(data, opts)
                 let perms = new Discord.Permissions(everyone.permissions);
                 perms = perms.remove(['MENTION_EVERYONE', 'VIEW_CHANNEL', 'SEND_MESSAGES']);
                 
-                data.channel.guild.createRole(
+                data.guild.roles.create(
                     {
-                        name: config.get('gymRoleName', opts.guild),
-                        mentionable: true,
-                        permissions: perms.bitfield
+                        data: {
+                            name: config.get('gymRoleName', opts.guild),
+                            mentionable: true,
+                            permissions: perms.bitfield
+                        }
                     }
                 )
                     .then(role => 
@@ -2962,11 +2978,13 @@ function processAdminCommand(data, opts)
                 let perms = new Discord.Permissions(everyone.permissions);
                 perms = perms.remove(['MENTION_EVERYONE', 'VIEW_CHANNEL', 'SEND_MESSAGES']);
                 
-                data.channel.guild.createRole(
+                data.guild.roles.create(
                     {
-                        name: config.get('gymChallengerRoleName', opts.guild),
-                        mentionable: true,
-                        permissions: perms.bitfield
+                        data:{
+                            name: config.get('gymChallengerRoleName', opts.guild),
+                            mentionable: true,
+                            permissions: perms.bitfield
+                        }
                     }
                 )
                     .then(role => 
@@ -2977,8 +2995,8 @@ function processAdminCommand(data, opts)
                         // Add all current users with badges to role
                         console.log('Adding current gym badge holders to challenger group');
                         
-                        data.guild.fetchMembers()
-                            .then(function (guildF)
+                        data.guild.members.fetch()
+                            .then(function (mems)
                             {
                                 let badges = config.get('gymBadges', opts.guild);
                                 let arrToAdd = [];
@@ -2992,7 +3010,7 @@ function processAdminCommand(data, opts)
                                     {
                                         if (j == 'length') continue;
                                         
-                                        let mem = guildF.members.get(j);
+                                        let mem = mems.get(j);
                                         
                                         if (arrToAdd.indexOf(j) == -1 && mem)
                                         {
@@ -3025,7 +3043,7 @@ function processAdminCommand(data, opts)
             )
             )
             {
-                data.channel.guild.createChannel( config.get('gymChannelName', opts.guild), 'text')
+                data.guild.channels.create( config.get('gymChannelName', opts.guild), {type: 'text'})
                     .then(channel => {config.set('gymChannelID', channel.id, opts.guild);});
                 
                 
@@ -3038,7 +3056,7 @@ function processAdminCommand(data, opts)
 
     else if (opts.args[0] == 'disable') // Perform reverse setup of role and channel
     {
-        let everyone = data.channel.guild.roles.find('name', '@everyone');
+        let everyone = data.guild.roles.cache.find((role) => role.name == '@everyone');
         
         if (typeof opts.args[1] !== 'string')
         {
@@ -3070,7 +3088,7 @@ function processAdminCommand(data, opts)
             )
             )
             {
-                let role = data.channel.guild.roles.get(config.get('verifyRoleID', opts.guild));
+                let role = data.guild.roles.resolve(config.get('verifyRoleID', opts.guild));
                 if (role) role.delete();
                 
                 config.reset('verifyRoleID', opts.guild);
@@ -3086,7 +3104,7 @@ function processAdminCommand(data, opts)
             )
             )
             {
-                let channel = data.channel.guild.channels.get(config.get('verifyChannelID', opts.guild));
+                let channel = data.guild.channels.resolve(config.get('verifyChannelID', opts.guild));
                 if (channel) channel.delete();
                 
                 config.reset('verifyChannelID', opts.guild);
@@ -3108,7 +3126,7 @@ function processAdminCommand(data, opts)
             )
             )
             {
-                let role = data.channel.guild.roles.get(config.get('gymRoleID', opts.guild));
+                let role = data.guild.roles.resolve(config.get('gymRoleID', opts.guild));
                 if (role) role.delete();
                 
                 config.reset('gymRoleID', opts.guild);
@@ -3123,7 +3141,7 @@ function processAdminCommand(data, opts)
             )
             )
             {
-                let role = data.channel.guild.roles.get(config.get('gymChallengerRoleID', opts.guild));
+                let role = data.guild.roles.resolve(config.get('gymChallengerRoleID', opts.guild));
                 if (role) role.delete();
                 
                 config.reset('gymChallengerRoleID', opts.guild);
@@ -3137,7 +3155,7 @@ function processAdminCommand(data, opts)
             )
             )
             {
-                let channel = data.channel.guild.channels.get(config.get('gymChannelID', opts.guild));
+                let channel = data.guild.channels.resolve(config.get('gymChannelID', opts.guild));
                 if (channel) channel.delete();
                 
                 config.reset('gymChannelID', opts.guild);
@@ -3178,7 +3196,7 @@ client.on('guildMemberAdd', (mem, error) =>
         
         if (muted.ids.indexOf(mem.id) > -1)
         {
-            mem.addRole(mutedRole);
+            mem.roles.add(mutedRole);
             console.log(`Member ${mem.user.username}#${mem.user.discriminator} rejoined and was muted previously`);
         }
     }
@@ -3186,7 +3204,7 @@ client.on('guildMemberAdd', (mem, error) =>
 /*
 function dmAllRaidSubs(data, arr, boss, tier, loc)
 {
-    let guild = data.channel.guild.id;
+    let guild = data.guild.id;
 	
     console.log('DMing all users subbed to raid boss ' + boss + ' (' + arr.length + ')');
 
@@ -3292,8 +3310,6 @@ function doMute(guild)
 
 function cancelMuteTimer(guild)
 {
-    console.log('Cancelled doMute timer');
-    
     if (mutedIDs[guild.id] != 0)
         clearTimeout(mutedIDs[guild.id]);
     mutedIDs[guild.id] = 0;
@@ -3320,10 +3336,10 @@ function mute(opts, guild, cb)
         return;
     }
     
-    guild.fetchMember(opts.user)
+    guild.members.fetch(opts.user)
         .then((mem) =>
         {
-            mem.addRole(mutedRole);
+            mem.roles.add(mutedRole);
         
         
             if (muted.objs.length == 0)
@@ -3355,6 +3371,25 @@ function mute(opts, guild, cb)
         });
 }
 
+function makeMuteEmbed(opts, banner, user)
+{
+    let muteTime = (opts.until - opts.time);
+    let muteUntil = new Date(opts.until);
+                
+    let mess = new Discord.MessageEmbed()
+        .setTitle('Mute Details')
+        .setColor(0x000000)
+        //.setDescription('testing')
+        .addField('Muter', `${banner}`, true)
+        .addField('User', `${user}`, true)
+        .addField('Length', `${milliToString(muteTime)}`, true)
+        .addField('Reason', `${opts.reason || 'None'}`)
+        .addField('Unban Date', `${muteUntil.toLocaleString()}`)
+        .setTimestamp(opts.time);
+        
+    return mess;
+}
+
 function unmute(userid, guild, cb)
 {
     console.log(`Starting to unmute ${userid}`);
@@ -3367,12 +3402,12 @@ function unmute(userid, guild, cb)
         return;
     }
     
-    guild.fetchMember(userid)
+    guild.members.fetch(userid)
         .then((mem) =>
         {
             let ind = muted.ids.indexOf(mem.id);
         
-            mem.removeRole(mutedRole);
+            mem.roles.remove(mutedRole);
         
             if (ind > -1)
                 muted.ids.splice(ind, 1);
@@ -3527,7 +3562,7 @@ function milliToString(input)
 function dmAllUnverified(data)
 {
     /*
-    let guild = data.channel.guild.id;
+    let guild = data.guild.id;
 	
     console.log('DMing all users that aren\'t verified');
 
@@ -3597,13 +3632,13 @@ function verifyAll(data)
     
     console.log('Verifying all current users');
 	
-    data.guild.fetchMembers()
-        .then(function (guildF)
+    data.guild.members.fetch()
+        .then(function (mems)
         {
-            let filtered = guildF.members.filter(mem => (!mem.roles.get( roleid ) && mem.id != client.user.id) );
+            let filtered = mems.filter(mem => (!mem.roles.cache.get( roleid ) && mem.id != client.user.id) );
             let arrToAdd = Array.from(filtered.values());
 		
-            console.log('Verifying ' + arrToAdd.length + ' of ' + guildF.memberCount + ' users.  This may take a while');
+            console.log('Verifying ' + arrToAdd.length + ' of ' + data.guild.memberCount + ' users.  This may take a while');
 		
             addRoleRecursive(arrToAdd, roleid);
         });
@@ -3613,11 +3648,11 @@ function addRoleRecursive(memArr, roleid)
 {
     if (typeof memArr !== 'object' || memArr.length == 0)
     {
-        console.log('addRole complete');
+        console.log('roles.add complete');
         return;
     }
 	
-    memArr.shift().addRole( roleid )
+    memArr.shift().roles.add( roleid )
         .then(function (e) 
         {
             console.log(e.id + ' added to role');
@@ -3642,7 +3677,7 @@ function unverifyAll(data)
 
     let arrToAdd = [];
 	
-    let verifyRole = data.guild.roles.get(roleid);
+    let verifyRole = data.guild.roles.resolve(roleid);
 	
     if (verifyRole)
     {
@@ -3662,11 +3697,11 @@ function removeRoleRecursive(memArr, roleid)
 {
     if (typeof memArr !== 'object' || memArr.length == 0)
     {
-        console.log('removeRole complete');
+        console.log('roles.remove complete');
         return;
     }
 	
-    memArr.shift().removeRole( roleid )
+    memArr.shift().roles.remove( roleid )
         .then(function (e) 
         {
             console.log(e.id + ' removed from role');
@@ -3742,12 +3777,14 @@ function countVotekick(obj)
 // Create role if not exists
 function createRoleINE(data, roleName, mentionable)
 {
-    let role = data.guild.roles.find('name', roleName);
+    let role = data.guild.roles.cache.find((role) => role.name == roleName);
     if (!role)
     {
-        return data.guild.createRole({
-            name: roleName,
-            mentionable: (mentionable ? true : false) // to clean up input and allow for optional arg
+        return data.guild.roles.create({
+            data: {
+                name: roleName,
+                mentionable: (mentionable ? true : false) // to clean up input and allow for optional arg
+            }
         });
     }
     
@@ -3759,7 +3796,7 @@ function createRoleINE(data, roleName, mentionable)
 // Remove role if exists
 function removeRoleIE(data, roleName)
 {
-    let role = data.guild.roles.find('name', roleName);
+    let role = data.guild.roles.cache.find((role) => role.name == roleName);
     if (role)
     {
         return role.delete();
