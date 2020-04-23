@@ -2,6 +2,7 @@ var Discord = require('discord.js');
 var Config = require('./config.js');
 var flip = require('flip-text');
 var fs = require('fs');
+var Twitter = require('twitter');
 
 /*
 config = new Config({
@@ -220,6 +221,10 @@ var config = new Config({
     mutedRole: {
         value: '',
         type: 'string'
+    },
+    modRole: {
+        value: '',
+        type: 'string'
     }
     
 });
@@ -413,6 +418,7 @@ function processUserCommand(data, opts)
             '     Supports *x*d*y* format; ex. 2d10\n' +
             '     Alias: `'+ c + 'roll`\n' +
 			'`'+ c + 'emojis` - Lists all server emojis\n' +
+			'`'+ c + 'modrank` - Lists the current highest ranked mod\n' +
 			'`'+ c + 'gif <search term>` - Posts a gif found using the search term\n' +
 			'`'+ c + 'img <search term>` - Posts an image found using the search term\n' +
 			'`'+ c + 'stats` - Prints out some server stats\n' +
@@ -565,6 +571,53 @@ function processUserCommand(data, opts)
             data.channel.send(out);
         else if (count == 0)
             data.reply('There are no emojis');
+    }
+    else if (opts.args[0] == 'modrank') // Lists currently highest rated mod
+    {
+        let modRole = config.get('modRole', opts.guild);
+        
+        if (modRole == '')
+        {
+            data.reply('No mod role set');
+            return;
+        }
+        
+        let role = data.guild.roles.resolve(modRole);
+        
+        if (!role)
+        {
+            data.reply('Can\'t find the mod role!');
+            return;
+        }
+        
+        // Mod role exists
+        try
+        {
+            let twitter = new Twitter({
+                consumer_key: process.env.TWITTERAPIKEY,
+                consumer_secret: process.env.TWITTERAPISECRET,
+                bearer_token: process.env.TWITTERBEARER
+            });
+            
+            twitter.get('/search/tweets', {q: 'from:@PokemonGoApp', count: 1, result_type: 'recent'})
+                .then((search) =>
+                {
+                    let tweet = search.statuses[0];
+                    let modNum = role.members.keyArray()[ (tweet.text.charCodeAt(0) + tweet.text.charCodeAt(5)) % role.members.size ];
+                    
+                    data.channel.send(`Based on my data, **${role.members.get(modNum).displayName}** is currently the best mod.`);
+                })
+                .catch((err) =>
+                {
+                    console.log(`Error getting tweet ${err}`);
+                });
+        } catch (e)
+        {
+            console.log('Failed to get tweet');
+            console.log(e);
+            data.reply('Something went wrong with my data, try again later');
+        }
+
     }
     else if (opts.args[0] == 'flip') // Flips subject
     {
@@ -1673,6 +1726,7 @@ function processAdminCommand(data, opts)
             '\n**Administration**\n' +
             '`'+ c + 'setimagetimer <number>` - Time in seconds for gif and image command cooldown. Current: `' + config.get('imageTimer', opts.guild) + '`\n' +
             '`'+ c + 'setvkthreshold <number>` - Set the threshold for someone to get votekicked. Current: `' + config.get('votekickThreshold', opts.guild) + '`\n' +
+            '`'+ c + 'setmodrole @<role>` - Sets the mod role`\n' +
             '`'+ c + 'getpokemonroles <number>` - Gets pokemon roles with <= `number` people in them\n' +
             '`'+ c + 'rmpokemonroles <pokemon1>,<pokemon2>...` - Removes pokemon roles listed\n' +
             '`'+ c + 'addadminrole <role>` - Adds a role to the admin list, allowing use of administration commands (besides this one)\n' +
@@ -2054,6 +2108,17 @@ function processAdminCommand(data, opts)
         {
             data.react('❌');
         }
+    }
+    else if (opts.args[0] == 'setmodrole') // Sets time between images being posted
+    {
+        if (data.mentions.roles.size == 0)
+        {
+            data.reply('I don\'t see any role mentions.');
+            return;
+        }
+        
+        config.set('modRole', data.mentions.roles.first().id, opts.guild);
+        data.react('👌');
     }
     else if (opts.args[0] == 'showchannel') // Unhides channel to unverified uers
     {
@@ -3849,9 +3914,9 @@ Date.prototype.stdTimezoneOffset = function () {
     var jan = new Date(this.getFullYear(), 0, 1);
     var jul = new Date(this.getFullYear(), 6, 1);
     return Math.max(jan.getTimezoneOffset(), jul.getTimezoneOffset());
-}
+};
 
 Date.prototype.isDstObserved = function () {
     return this.getTimezoneOffset() < this.stdTimezoneOffset();
-}
+};
 	
