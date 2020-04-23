@@ -2667,7 +2667,7 @@ function processAdminCommand(data, opts)
         // }
         
         
-        let currentEmo = data.guild.emojis.resolveIdentifier(opts.origArgs[1]);
+        let currentEmo = data.guild.emojis.cache.find((emo) => emo.name.toLowerCase() == opts.origArgs[1].toLowerCase());
         
         
         
@@ -2688,7 +2688,7 @@ function processAdminCommand(data, opts)
         }
         else
         {
-            data.reply('An emoji already exists with that name: ' + currentEmo);
+            data.reply('An emoji already exists with that name: ' + currentEmo.name);
         }
     }
     
