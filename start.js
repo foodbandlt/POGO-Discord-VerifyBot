@@ -2675,7 +2675,7 @@ function processAdminCommand(data, opts)
         {
             console.log('Adding emoji "' + opts.origArgs[1] + '"');
             
-            data.guild.emoji.create(opts.origArgs[2], opts.origArgs[1])
+            data.guild.emojis.create(opts.origArgs[2], opts.origArgs[1])
                 .then((emo) =>
                 {
                     data.react('👌');
