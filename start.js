@@ -603,17 +603,18 @@ function processUserCommand(data, opts)
                 .then((search) =>
                 {
                     let tweet = search.statuses[0];
-                    let modNum = role.members.keyArray()[ (tweet.text.charCodeAt(0) + tweet.text.charCodeAt(5)) % role.members.size ];
-                    let modNumWorst = role.members.keyArray()[ (tweet.text.charCodeAt(5) + tweet.text.charCodeAt(7)) % role.members.size ];
+                    let arr = role.members.keyArray();
+                    let modNum = arr[ (tweet.text.charCodeAt(0) + tweet.text.charCodeAt(5)) % role.members.size ];
+                    let modNumWorst = arr[ (tweet.text.charCodeAt(5) + tweet.text.charCodeAt(7)) % role.members.size ];
                     
                     for (let i = 0; i < 5; i++) 
                     {
                         if (modNum != modNumWorst) break;
                         
-                        modNumWorst = (modNumWorst + tweet.text.charCodeAt(i)) % role.members.size;
+                        modNumWorst = arr[(modNumWorst + tweet.text.charCodeAt(i)) % role.members.size];
                     }
                     
-                    data.channel.send(`Based on my data, **${role.members.get(modNum).displayName}** is currently the best mod. **${role.members.get(modNumWorst).displayName}** is the worst mod.`);
+                    data.channel.send(`Based on my data, **${role.members.get(modNum).displayName}** is currently the best mod. **${role.members.get(modNumWorst).displayName}** is currently the worst mod.`);
                 })
                 .catch((err) =>
                 {
