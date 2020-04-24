@@ -606,7 +606,14 @@ function processUserCommand(data, opts)
                     let modNum = role.members.keyArray()[ (tweet.text.charCodeAt(0) + tweet.text.charCodeAt(5)) % role.members.size ];
                     let modNumWorst = role.members.keyArray()[ (tweet.text.charCodeAt(5) + tweet.text.charCodeAt(7)) % role.members.size ];
                     
-                    data.channel.send(`Based on my data, **${role.members.get(modNum).displayName}** is currently the best mod. ` + (modNum != modNumWorst ? `**${role.members.get(modNumWorst).displayName}** is the worst mod (but actually **Mega** is the worst mod)` : 'Conversely, they\'re also the worst mod at the same time.'));
+                    for (let i = 0; i < 5; i++) 
+                    {
+                        if (modNum != modNumWorst) break;
+                        
+                        modNumWorst = (modNumWorst + tweet.text.charCodeAt(i)) % role.members.size;
+                    }
+                    
+                    data.channel.send(`Based on my data, **${role.members.get(modNum).displayName}** is currently the best mod. **${role.members.get(modNumWorst).displayName}** is the worst mod.`);
                 })
                 .catch((err) =>
                 {
