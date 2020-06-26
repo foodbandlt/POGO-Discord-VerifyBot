@@ -422,6 +422,7 @@ function processUserCommand(data, opts)
 			'`'+ c + 'gif <search term>` - Posts a gif found using the search term\n' +
 			'`'+ c + 'img <search term>` - Posts an image found using the search term\n' +
 			'`'+ c + 'stats` - Prints out some server stats\n' +
+			'`'+ c + 'google <topic>` - Gives you a Google link to the topic\n' +
             '`'+ c + 'wantquest <quest>` - Subscribes you to notifications for quest\n' +
             '     Alias: `'+ c + 'wantq`\n' +
 			'`'+ c + 'unwantquest <quest>` - Unsubscribes you to notifications for quest\n' +
@@ -473,6 +474,10 @@ function processUserCommand(data, opts)
     {
         data.react('👌');
         data.reply('Pong!');
+    }
+    else if (opts.args[0] == 'google') // Unhides channel to unverified uers
+    {
+        data.reply('https://www.google.com/search?q=' + encodeURIComponent(opts.withoutCommand));
     }
     else if (opts.args[0] == 'dice' || opts.args[0] == 'roll') // Unhides channel to unverified uers
     {
