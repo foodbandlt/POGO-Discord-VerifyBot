@@ -368,6 +368,8 @@ function processChatCommand(data)
         withoutCommand:     ( data.cleanContent.indexOf(' ') > -1 ? data.cleanContent.substring( data.cleanContent.indexOf(' ') + 1 ) : ''),
         args:               data.content.toLowerCase().substr(1).replace(/\n/g, ' ').split(' '),
         origArgs:           data.content.substr(1).split(' '),
+        args:               data.content.toLowerCase().substr(1).replace(/\n/g, ' ').split(' ').filter(elem => elem != ''),
+        origArgs:           data.content.substr(1).split(' ').filter(elem => elem != ''),
         isAdmin:            isAdmin,
         isAdminRole:        isAdminRole,
     };
