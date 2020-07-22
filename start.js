@@ -352,6 +352,8 @@ client.on('guildCreate', (data, error) =>
     let guild = data.id;
 });
 
+
+
 function processChatCommand(data)
 {
     let adminRoles = config.get('adminRoles', data.guild.id);
@@ -366,8 +368,6 @@ function processChatCommand(data)
         guild:              data.guild.id,
         member:             data.author.id,
         withoutCommand:     ( data.cleanContent.indexOf(' ') > -1 ? data.cleanContent.substring( data.cleanContent.indexOf(' ') + 1 ) : ''),
-        args:               data.content.toLowerCase().substr(1).replace(/\n/g, ' ').split(' '),
-        origArgs:           data.content.substr(1).split(' '),
         args:               data.content.toLowerCase().substr(1).replace(/\n/g, ' ').split(' ').filter(elem => elem != ''),
         origArgs:           data.content.substr(1).split(' ').filter(elem => elem != ''),
         isAdmin:            isAdmin,
@@ -2710,13 +2710,13 @@ function processAdminCommand(data, opts)
     
     else if (opts.args[0] == 'rmemoji') // Removes emoji from server
     {
-        if (opts.origArgs[1].replace(/[^\w]/gi, '') != opts.origArgs[1])
+        if (typeof opts.origArgs[1] !== 'string' || opts.origArgs[1] == '' || opts.origArgs[1].replace(/[^\w]/gi, '') != opts.origArgs[1])
         {
             data.reply('Invalid emoji name.  Letters and numbers only.');
             return;
         }
         
-        let currentEmo = data.guild.emojis.resolveIdentifier(opts.origArgs[1]);
+        let currentEmo = data.guild.emojis.cache.find((emo) => emo.name.toLowerCase() == opts.origArgs[1].toLowerCase());
         
         if (currentEmo)
         {
@@ -2741,13 +2741,14 @@ function processAdminCommand(data, opts)
 	
     else if (opts.args[0] == 'editemoji') // Edits emoji from server
     {
-        if (opts.origArgs[1].replace(/[^\w]/gi, '') != opts.origArgs[1])
+        
+        if (typeof opts.origArgs[1] !== 'string' || opts.origArgs[1] == '' || opts.origArgs[1].replace(/[^\w]/gi, '') != opts.origArgs[1])
         {
             data.reply('Invalid emoji name.  Letters and numbers only.');
             return;
         }
-        
-        let currentEmo = data.guild.emojis.resolveIdentifier(opts.origArgs[1]);
+
+        let currentEmo = data.guild.emojis.cache.find((emo) => emo.name.toLowerCase() == opts.origArgs[1].toLowerCase());
         
         if (currentEmo)
         {
