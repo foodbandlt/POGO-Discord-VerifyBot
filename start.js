@@ -3383,6 +3383,11 @@ function doMute(guild)
             
             unmute(user.user, guild, (error, mem) =>
             {
+                if (error)
+                {
+                    return;
+                }
+                
                 console.log(`Unmuted ${mem.user.username}#${mem.user.discriminator} based on timer`);
             });
         }, time);
@@ -3496,17 +3501,7 @@ function unmute(userid, guild, cb)
         
             mem.roles.remove(mutedRole);
         
-            if (ind > -1)
-                muted.ids.splice(ind, 1);
-        
-            for (let i in muted.objs)
-            {
-                if (muted.objs[i].user == mem.id)
-                {
-                    muted.objs.splice(i, 1);
-                    break;
-                }
-            }
+            muted = removeUserFromMuteObj(muted, userid);
         
             config.set('mutedObj', muted, guild.id);
         
@@ -3517,7 +3512,40 @@ function unmute(userid, guild, cb)
         .catch( (err) =>
         {
             console.log(`Could not unmute user ${err}`);
+            
+            if (err == 'DiscordAPIError: Unknown Member')
+            {
+                muted = removeUserFromMuteObj(muted, userid);
+                
+                config.set('mutedObj', muted, guild.id);
+                
+                console.log('Removed unknown user from mute queue');
+                
+                doMute(guild);
+            }
+            
+            if (typeof cb == 'function')
+                cb(err, null);
         });
+}
+
+function removeUserFromMuteObj(muted, userid)
+{
+    let ind = muted.ids.indexOf(userid);
+                
+    if (ind > -1)
+        muted.ids.splice(ind, 1);
+
+    for (let i in muted.objs)
+    {
+        if (muted.objs[i].user == userid)
+        {
+            muted.objs.splice(i, 1);
+            break;
+        }
+    }
+    
+    return muted;
 }
 
 function getMilliFromString(input)
