@@ -1742,7 +1742,7 @@ function processAdminCommand(data, opts)
             '\n**Administration**\n' +
             '`'+ c + 'setimagetimer <number>` - Time in seconds for gif and image command cooldown. Current: `' + config.get('imageTimer', opts.guild) + '`\n' +
             '`'+ c + 'setvkthreshold <number>` - Set the threshold for someone to get votekicked. Current: `' + config.get('votekickThreshold', opts.guild) + '`\n' +
-            '`'+ c + 'setmodrole @<role>` - Sets the mod role`\n' +
+            '`'+ c + 'setmodrole @<role>` - Sets the mod role\n' +
             '`'+ c + 'getpokemonroles <number>` - Gets pokemon roles with <= `number` people in them\n' +
             '`'+ c + 'rmpokemonroles <pokemon1>,<pokemon2>...` - Removes pokemon roles listed\n' +
             '`'+ c + 'addadminrole <role>` - Adds a role to the admin list, allowing use of administration commands (besides this one)\n' +
