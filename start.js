@@ -27,6 +27,11 @@ var BADGE = {
     leaderName: ''
 };
 
+var TRAINER = {
+    name: '',
+    code: ''
+};
+
 var mutedIDs = {};
 
 var config = new Config({
@@ -225,6 +230,10 @@ var config = new Config({
     modRole: {
         value: '',
         type: 'string'
+    },
+    friendCodes: {
+        value: {},
+        type: 'json'
     }
     
 });
@@ -425,6 +434,9 @@ function processUserCommand(data, opts)
 			'`'+ c + 'img <search term>` - Posts an image found using the search term\n' +
 			'`'+ c + 'stats` - Prints out some server stats\n' +
 			'`'+ c + 'google <topic>` - Gives you a Google link to the topic\n' +
+			'`'+ c + 'setfc <friend code>` - Sets your friendcode for the `fc` command\n' +
+			'`'+ c + 'setign <friend code>` - Sets your in-game name for the `fc` command\n' +
+			'`'+ c + 'fc` - Lists friend code and ign in this channel\n' +
             '`'+ c + 'wantquest <quest>` - Subscribes you to notifications for quest\n' +
             '     Alias: `'+ c + 'wantq`\n' +
 			'`'+ c + 'unwantquest <quest>` - Unsubscribes you to notifications for quest\n' +
@@ -638,6 +650,62 @@ function processUserCommand(data, opts)
     else if (opts.args[0] == 'flip') // Flips subject
     {
         data.channel.send(makeSafe('\u0028\u256f\u00b0\u25a1\u00b0\uff09\u256f\ufe35 ' + flip(opts.withoutCommand)));
+    }
+    else if (opts.args[0] == 'setfc')
+    {
+        let trainers = config.get('friendCodes', opts.guild);
+        let mess = opts.withoutCommand.replace(/ /g, '');
+        
+        if (typeof trainers[data.author.id] == 'undefined')
+            trainers[data.author.id] = Object.assign({}, TRAINER);
+        
+        if (mess.length > 12)
+        {
+            data.reply('Looks like there\'s more than just a trainer code in there.  Please only include your 12-digit trainer code.');
+            return;
+        }
+        
+        if (mess.length < 12 && mess.length != 0)
+        {
+            data.reply('Looks like you\'re missing a few digits in your friend code.  Make sure you include all 12 digits.');
+            return;
+        }
+        
+        trainers[data.author.id].code = mess;
+        config.set('friendCodes', trainers, opts.guild);
+        data.react('👌');
+    }
+    else if (opts.args[0] == 'setign')
+    {
+        let trainers = config.get('friendCodes', opts.guild);
+        let mess = opts.withoutCommand;
+        
+        if (typeof trainers[data.author.id] == 'undefined')
+            trainers[data.author.id] = Object.assign({}, TRAINER);
+        
+        if (opts.withoutCommand.length > 17)
+        {
+            data.reply('Looks like there\'s more than just a trainer name in there.  Please only include your in-game name.');
+            return;
+        }
+        
+        trainers[data.author.id].name = opts.withoutCommand;
+        config.set('friendCodes', trainers, opts.guild);
+        data.react('👌');
+    }
+    else if (opts.args[0] == 'fc')
+    {
+        let trainers = config.get('friendCodes', opts.guild);
+        let trainer = trainers[data.author.id];
+        
+        if (typeof trainer == 'undefined')
+        {
+            data.reply('I don\'t have anything on record for you unfortunately.  Use the `setfc` and `setign` commands to fix that.');
+            return;
+        }
+        
+        data.reply(`\n**IGN**: ${trainer.name != '' ? trainer.name : '*Not set*'}`);
+        data.channel.send(trainer.code != '' ? trainer.code : '*Trainer code not set*');
     }
     /*
     else if (opts.args[0] == 'votekick' || 
@@ -3355,11 +3423,6 @@ function doMute(guild)
         return;
     }
 
-    
-    
-    
-    
-    
     let user = muted.objs[0];
     let time = (user.until - Date.now());
     time = time > 0 ? time : 0;
