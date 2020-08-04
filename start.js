@@ -465,8 +465,10 @@ function processUserCommand(data, opts)
 			'`'+ c + 'stats` - Prints out some server stats\n' +
 			'`'+ c + 'google <topic>` - Gives you a Google link to the topic\n' +
 			'`'+ c + 'setfc <friend code>` - Sets your friendcode for the `fc` command\n' +
-			'`'+ c + 'setign <friend code>` - Sets your in-game name for the `fc` command\n' +
-			'`'+ c + 'fc` - Lists friend code and ign in this channel\n' +
+            '     Options: `'+ c + 'setfc [number] <friend code> - Sets that number to an alt\'ts friend code`\n' +
+			'`'+ c + 'setign <name>` - Sets your in-game name for the `fc` command\n' +
+            '     Options: `'+ c + 'setign [number] <name> - Sets that number to an alt\'ts name`\n' +
+			'`'+ c + 'fc [number]` - Lists friend code and ign in this channel, or lists an alt\'s info if number is specified\n' +
             '`'+ c + 'wantquest <quest>` - Subscribes you to notifications for quest\n' +
             '     Alias: `'+ c + 'wantq`\n' +
 			'`'+ c + 'unwantquest <quest>` - Unsubscribes you to notifications for quest\n' +
@@ -683,13 +685,37 @@ function processUserCommand(data, opts)
     }
     else if (opts.args[0] == 'setfc')
     {
+        let num = null;
+        
+        // Support for multiple friend codes
+        // > 2 args, accounting for thirs arg
+        // Only support for up to 9
+        if (opts.args.length > 2 && opts.args[1].length == 1)
+        {
+            try
+            {
+                num = parseInt(opts.args[1]);
+                
+                if (isNaN(num))
+                    num = null;
+            }
+            catch (e)
+            {
+                num = null;
+            }
+        }
+        
+        let mod = data.author.id.toString() + (num != null && num > 1 ? num : '');
+        
         let trainers = config.get('friendCodes', opts.guild);
-        let mess = opts.withoutCommand.replace(/ /g, '');
+        let ind = opts.withoutCommand.indexOf(' ');
+        let mess = num != null ? opts.withoutCommand.substring( ind + 1 ) : opts.withoutCommand;
+        mess = mess.replace(/ /g, '');
         
-        if (typeof trainers[data.author.id] == 'undefined')
-            trainers[data.author.id] = Object.assign({}, TRAINER);
+        if (typeof trainers[mod] == 'undefined')
+            trainers[mod] = Object.assign({}, TRAINER);
         
-        if (mess.length > 12)
+        if (mess.length > 12 || mess.match(/[^0-9]/g))
         {
             data.reply('Looks like there\'s more than just a trainer code in there.  Please only include your 12-digit trainer code.');
             return;
@@ -701,17 +727,40 @@ function processUserCommand(data, opts)
             return;
         }
         
-        trainers[data.author.id].code = mess;
+        trainers[mod].code = mess;
         config.set('friendCodes', trainers, opts.guild);
         data.react('👌');
     }
     else if (opts.args[0] == 'setign')
     {
-        let trainers = config.get('friendCodes', opts.guild);
-        let mess = opts.withoutCommand;
+        let num = null;
         
-        if (typeof trainers[data.author.id] == 'undefined')
-            trainers[data.author.id] = Object.assign({}, TRAINER);
+        // Support for multiple friend codes
+        // > 2 args, accounting for thirs arg
+        // Only support for up to 9
+        if (opts.args.length > 2 && opts.args[1].length == 1)
+        {
+            try
+            {
+                num = parseInt(opts.args[1]);
+                
+                if (isNaN(num))
+                    num = null;
+            }
+            catch (e)
+            {
+                num = null;
+            }
+        }
+        
+        let mod = data.author.id.toString() + (num != null && num > 1 ? num : '');
+        
+        let trainers = config.get('friendCodes', opts.guild);
+        let ind = opts.withoutCommand.indexOf(' ');
+        let mess = num != null ? opts.withoutCommand.substring( ind + 1 ) : opts.withoutCommand;
+        
+        if (typeof trainers[mod] == 'undefined')
+            trainers[mod] = Object.assign({}, TRAINER);
         
         if (opts.withoutCommand.length > 17)
         {
@@ -719,14 +768,36 @@ function processUserCommand(data, opts)
             return;
         }
         
-        trainers[data.author.id].name = opts.withoutCommand;
+        trainers[mod].name = mess;
         config.set('friendCodes', trainers, opts.guild);
         data.react('👌');
     }
     else if (opts.args[0] == 'fc')
     {
+        let num = null;
+        
+        // Support for multiple friend codes
+        // > 2 args, accounting for thirs arg
+        // Only support for up to 9
+        if (opts.args.length > 1 && opts.args[1].length == 1)
+        {
+            try
+            {
+                num = parseInt(opts.args[1]);
+                
+                if (isNaN(num))
+                    num = null;
+            }
+            catch (e)
+            {
+                num = null;
+            }
+        }
+        
+        let mod = data.author.id.toString() + (num != null && num > 1 ? num : '');
+        
         let trainers = config.get('friendCodes', opts.guild);
-        let trainer = trainers[data.author.id];
+        let trainer = trainers[mod];
         
         if (typeof trainer == 'undefined')
         {
