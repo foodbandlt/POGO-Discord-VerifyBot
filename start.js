@@ -361,7 +361,37 @@ client.on('guildCreate', (data, error) =>
     let guild = data.id;
 });
 
-
+client.on('guildMemberAdd', (mem, error) =>
+{
+    if ( config.get('isDMEnabled', mem.guild.id) && config.get('newJoinDMMessage', mem.guild.id) != '')
+    {
+        mem.createDM()
+            .then((DM) =>
+            {
+                console.log('Sending DM to new member: ' + mem.user.username + '#' + mem.user.discriminator);
+			
+                DM.send(config.get('newJoinDMMessage', mem.guild.id));
+            })
+            .catch( (e) =>
+            {
+                console.log('Could not open DM: ');
+                console.log(e);
+            });
+    }
+    
+    if ( config.get('mutedRole', mem.guild.id) != '')
+    {
+        // muting setup
+        let muted = config.get('mutedObj', mem.guild.id);
+        let mutedRole = config.get('mutedRole', mem.guild.id);
+        
+        if (muted.ids.indexOf(mem.id) > -1)
+        {
+            mem.roles.add(mutedRole);
+            console.log(`Member ${mem.user.username}#${mem.user.discriminator} rejoined and was muted previously`);
+        }
+    }
+});
 
 function processChatCommand(data)
 {
@@ -3320,37 +3350,7 @@ function processAdminCommand(data, opts)
     }
 }
 
-client.on('guildMemberAdd', (mem, error) =>
-{
-    if ( config.get('isDMEnabled', mem.guild.id) && config.get('newJoinDMMessage', mem.guild.id) != '')
-    {
-        mem.createDM()
-            .then((DM) =>
-            {
-                console.log('Sending DM to new member: ' + mem.user.username + '#' + mem.user.discriminator);
-			
-                DM.send(config.get('newJoinDMMessage', mem.guild.id));
-            })
-            .catch( (e) =>
-            {
-                console.log('Could not open DM: ');
-                console.log(e);
-            });
-    }
-    
-    if ( config.get('mutedRole', mem.guild.id) != '')
-    {
-        // muting setup
-        let muted = config.get('mutedObj', mem.guild.id);
-        let mutedRole = config.get('mutedRole', mem.guild.id);
-        
-        if (muted.ids.indexOf(mem.id) > -1)
-        {
-            mem.roles.add(mutedRole);
-            console.log(`Member ${mem.user.username}#${mem.user.discriminator} rejoined and was muted previously`);
-        }
-    }
-});
+
 /*
 function dmAllRaidSubs(data, arr, boss, tier, loc)
 {
