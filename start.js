@@ -1206,7 +1206,7 @@ function processUserCommand(data, opts)
         let string = '';
         http.get({
             host: 'api.giphy.com',
-            path: '/v1/gifs/search?q=' + arg + '&api_key=dc6zaTOxFJmzC&limit=7'
+            path: '/v1/gifs/search?q=' + arg + '&api_key=' + process.env.GIPHYAPIKEY + '&limit=7'
         }, function( res ){
             res.setEncoding('utf8');
             res.on('data', function(dat){
