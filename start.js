@@ -444,7 +444,7 @@ function processChatCommand(data)
 
 function processUserCommand(data, opts)
 {
-    if (opts.args[0] == 'commands') // Lists commands
+    if (opts.args[0] == 'commands' || opts.args[0] == 'help') // Lists commands
     {
         // Skips this if gyms is specified
         if (opts.args[1] && (opts.args[1] == 'gym' || opts.args[1] == 'gyms'))
