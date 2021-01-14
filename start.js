@@ -1870,6 +1870,7 @@ function processAdminCommand(data, opts)
             '`'+ c + 'mute @<username> <time> <reason>` - Mutes user for specified time. Time format: `5s5m5h5d5mo`\n' +
             '     **Details**: `5s`: 5 seconds, `5m`: 5 minutes, `5h`: 5 hours, `5d`: 5 days, `5mo`: 5 months.\n' +
             '     **Omit any unused time periods.  `5s5d`: 5 days and 5 seconds**\n' +
+			'     **Alias**: `m`' +
             '`'+ c + 'unmute @<username>` - Unmutes user\n' +
             '`'+ c + 'mutedetails @<username>` - Shows details of mute\n' +
             '`'+ c + 'mutesetrole @<role>` - Sets muted role\n' +
@@ -1992,7 +1993,7 @@ function processAdminCommand(data, opts)
     // MUTING COMMANDS
     // *******************************
     
-    else if (opts.args[0] == 'mute') // Unverify all current users
+    else if (opts.args[0] == 'mute' || opts.args[0] == 'm') // Unverify all current users
     {
         let muted = config.get('mutedObj', opts.guild);
         let mutedRole = config.get('mutedRole', opts.guild);
@@ -3029,7 +3030,8 @@ function processAdminCommand(data, opts)
     
     else if (opts.args[0] == 'setdm') // Sets DM message
     {
-        let ind = data.cleanContent.indexOf(' ');
+        let ind = data.content.indexOf(' ');
+		// Removing command from message
         let newMess = ( ind > -1 ? data.cleanContent.substring( data.cleanContent.indexOf(' ') + 1 ) : '');
         config.set('newJoinDMMessage', newMess, opts.guild);
             
