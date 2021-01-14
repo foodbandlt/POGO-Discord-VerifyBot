@@ -3032,7 +3032,7 @@ function processAdminCommand(data, opts)
     {
         let ind = data.content.indexOf(' ');
 		// Removing command from message
-        let newMess = ( ind > -1 ? data.cleanContent.substring( data.cleanContent.indexOf(' ') + 1 ) : '');
+        let newMess = ( ind > -1 ? data.content.substring( data.content.indexOf(' ') + 1 ) : '');
         config.set('newJoinDMMessage', newMess, opts.guild);
             
         data.react('👌');
