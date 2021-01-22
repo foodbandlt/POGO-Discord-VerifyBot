@@ -2209,14 +2209,22 @@ function processAdminCommand(data, opts)
     else if (opts.args[0] == 'lookupbyign' || opts.args[0] == 'whoisbyign') 
     {
         let trainer = getFCInfoByIGN(opts.args[1], opts.guild);
+        let discordStr = '';
 		
         if (trainer)
         {
             data.guild.members.fetch(trainer.id)
-                .then( (mem) => 
+                .then( (mem) =>
                 {
-				
-                    data.reply(`\n**Discord**: ${mem.displayName} (${mem.user.username}#${mem.user.discriminator})\n**IGN**: ${trainer.name != '' ? trainer.name : '*Not set*'}`);
+                    discordStr = `\n**Discord**: ${mem.displayName} (${mem.user.username}#${mem.user.discriminator})`;
+                })
+                .catch( () =>
+                {
+                    discordStr = '\n**Discord**: unknown';
+                })
+                .finally( (mem) => 
+                {
+                    data.reply(`${discordStr}\n**IGN**: ${trainer.name != '' ? trainer.name : '*Not set*'}`);
                     data.channel.send(trainer.code != '' ? trainer.code : '*Trainer code not set*');
                 });
             
