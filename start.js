@@ -32,9 +32,12 @@ var TRAINER = {
     code: ''
 };
 
+var client = null;
+var config = null;
+
 var mutedIDs = {};
 
-var config = new Config({
+new Config({
     commandCharacter: {
         value: '!',
         type: 'string'
@@ -236,162 +239,171 @@ var config = new Config({
         type: 'json'
     }
     
-});
-
-var client = new Discord.Client({disableEveryone: true});
-
-client.on('ready', () => 
-{
-    console.log('ready!');
-    
-    let guilds = config.getNonDefaultGuilds('mutedObj');
-    guilds.forEach( (guild) =>
+})
+    .then( (conf) =>
     {
-        doMute(client.guilds.resolve(guild));
+        config = conf;
+        setup();
     });
-});
-
-client.login(process.env.DISCORDAPIKEY).then(() =>
-{
-    // console.log(client.guilds);
-    client.user.setPresence({
-        game: {name: 'Guardian of the Discord'},
-        status: 'online'
-    });
-
-
-},
-(error) =>
-{
-    console.log('failed');
-    console.log(error);
-    process.exit(1);
-});
-
-client.on('message', (data, error) => 
-{
-    if (error)
-    {
-        console.log(error);
-        return;
-    }
-    
-    // Don't process or respond until config is loaded.
-    if (!config.isLoaded())
-        return;
 	
-    // If not undefined, message came from a guild text channel
-    if (data.guild)
+function setup() {
+    client = new Discord.Client({disableEveryone: true});
+
+    client.on('ready', () => 
     {
-        // Get member because there's some wonky caching going on
-        data.guild.members.fetch(data.author)
-            .then(function (mem) 
-            {
-                data.member = mem;
+        console.log('ready!');
 		
-                config.logMessage(data);
-			
-                if (data.author.id == client.user.id) // Don't respond to your own messages
-                    return;
-			
-                let guild = data.guild.id;
-                let member = data.author.id;
-			
-                if (data.content.indexOf( config.get('commandCharacter', guild) ) == 0)
-                {
-                    //Chat command
-                    processChatCommand(data);
-                }
-            
-                let verifyMatch = data.content.match( new RegExp(config.get('commandCharacter', guild) + config.get('verifyKeyword', guild), 'i') );
-			
-                // Watch for messages from the verify channel, respond if not !verify
-                if (data.channel.id == config.get('verifyChannelID', guild) && 
-                    (!verifyMatch || 
-                    (verifyMatch ? verifyMatch.index : -1) != 0) && 
-				!data.member.roles.cache.get(config.get('verifyRoleID', guild) ))
-                {
-                    data.reply('Please read the the other channels for instructions on how to verify.  Make sure you type exactly as the instructions say for proper verification.');
-                }
-            });
-    }
-    else
-    {
-        // Then the message must be a DM
-        config.logDM(data);
-    }
-    
-    // Don't flip your own messages... endless flipping
-    if (data.author.id != client.user.id)
-    {
-        // Table flip scenarios
-        let tableFlip = /\u0028\u256f\u00b0\u25a1\u00b0\uff09\u256f\ufe35(.*?)$/gi;
-        let flipInMessage = data.cleanContent.indexOf('\u0028\u256f\u00b0\u25a1\u00b0\uff09\u256f\ufe35\u0020\u253b\u2501\u253b');
-        let atInMessage = data.cleanContent.indexOf('@');
-        
-        // Traditional table flip
-        if (flipInMessage > -1 &&
-            (atInMessage == -1 || (atInMessage > -1 && atInMessage != flipInMessage-1)))
+        let guilds = config.getNonDefaultGuilds('mutedObj');
+        guilds.forEach( (guild) =>
         {
-            data.channel.send('\u252c\u2500\u252c\u0020\u30ce\u0028\u0020\u309c\u002d\u309c\u30ce\u0029');
+            doMute(client.guilds.resolve(guild));
+        });
+    });
+
+    client.login(process.env.DISCORDAPIKEY).then(() =>
+    {
+        // console.log(client.guilds);
+        client.user.setPresence({
+            game: {name: 'Guardian of the Discord'},
+            status: 'online'
+        });
+
+
+    },
+    (error) =>
+    {
+        console.log('failed');
+        console.log(error);
+        process.exit(1);
+    });
+
+    client.on('message', (data, error) => 
+    {
+        if (error)
+        {
+            console.log(error);
+            return;
         }
-        // Generic table flip
-        else if (data.cleanContent.indexOf('\u0028\u256f\u00b0\u25a1\u00b0\uff09\u256f\ufe35') > -1 &&
-                (atInMessage == -1 || (atInMessage > -1 && atInMessage != flipInMessage-1)))
+		
+        // Don't process or respond until config is loaded.
+        if (!config.isLoaded())
+            return;
+		
+        // If not undefined, message came from a guild text channel
+        if (data.guild)
         {
-            let arr = tableFlip.exec(data.cleanContent);
-            
-            if (arr)
+            // Get member because there's some wonky caching going on
+            data.guild.members.fetch(data.author)
+                .then(function (mem) 
+                {
+                    data.member = mem;
+			
+                    config.logMessage(data);
+				
+                    if (data.author.id == client.user.id) // Don't respond to your own messages
+                        return;
+				
+                    let guild = data.guild.id;
+                    let member = data.author.id;
+				
+                    if (data.content.indexOf( config.get('commandCharacter', guild) ) == 0)
+                    {
+                        //Chat command
+                        processChatCommand(data);
+                    }
+				
+                    let verifyMatch = data.content.match( new RegExp(config.get('commandCharacter', guild) + config.get('verifyKeyword', guild), 'i') );
+				
+                    // Watch for messages from the verify channel, respond if not !verify
+                    if (data.channel.id == config.get('verifyChannelID', guild) && 
+						(!verifyMatch || 
+						(verifyMatch ? verifyMatch.index : -1) != 0) && 
+					!data.member.roles.cache.get(config.get('verifyRoleID', guild) ))
+                    {
+                        data.reply('Please read the the other channels for instructions on how to verify.  Make sure you type exactly as the instructions say for proper verification.');
+                    }
+                });
+        }
+        else
+        {
+            // Then the message must be a DM
+            config.logDM(data);
+        }
+		
+        // Don't flip your own messages... endless flipping
+        if (data.author.id != client.user.id)
+        {
+            // Table flip scenarios
+            let tableFlip = /\u0028\u256f\u00b0\u25a1\u00b0\uff09\u256f\ufe35(.*?)$/gi;
+            let flipInMessage = data.cleanContent.indexOf('\u0028\u256f\u00b0\u25a1\u00b0\uff09\u256f\ufe35\u0020\u253b\u2501\u253b');
+            let atInMessage = data.cleanContent.indexOf('@');
+			
+            // Traditional table flip
+            if (flipInMessage > -1 &&
+				(atInMessage == -1 || (atInMessage > -1 && atInMessage != flipInMessage-1)))
             {
-                let mess = flip(arr[1].trim()) + '\u30ce\u0028\u0020\u309c\u002d\u309c\u30ce\u0029';
-                data.channel.send(makeSafe(mess));
+                data.channel.send('\u252c\u2500\u252c\u0020\u30ce\u0028\u0020\u309c\u002d\u309c\u30ce\u0029');
             }
-            
-        }
-        // Table put back
-        else if (data.cleanContent.indexOf('\u252c\u2500\u252c\u0020\u30ce\u0028\u0020\u309c\u002d\u309c\u30ce\u0029') > -1)
-        {
-            data.channel.send('\u0028\u256f\u00b0\u25a1\u00b0\uff09\u256f\ufe35\u0020\u253b\u2501\u253b');
-        }
-    }
-});
-
-client.on('guildCreate', (data, error) => 
-{
-    let guild = data.id;
-});
-
-client.on('guildMemberAdd', (mem, error) =>
-{
-    if ( config.get('isDMEnabled', mem.guild.id) && config.get('newJoinDMMessage', mem.guild.id) != '')
-    {
-        mem.createDM()
-            .then((DM) =>
+            // Generic table flip
+            else if (data.cleanContent.indexOf('\u0028\u256f\u00b0\u25a1\u00b0\uff09\u256f\ufe35') > -1 &&
+					(atInMessage == -1 || (atInMessage > -1 && atInMessage != flipInMessage-1)))
             {
-                console.log('Sending DM to new member: ' + mem.user.username + '#' + mem.user.discriminator);
+                let arr = tableFlip.exec(data.cleanContent);
+				
+                if (arr)
+                {
+                    let mess = flip(arr[1].trim()) + '\u30ce\u0028\u0020\u309c\u002d\u309c\u30ce\u0029';
+                    data.channel.send(makeSafe(mess));
+                }
+				
+            }
+            // Table put back
+            else if (data.cleanContent.indexOf('\u252c\u2500\u252c\u0020\u30ce\u0028\u0020\u309c\u002d\u309c\u30ce\u0029') > -1)
+            {
+                data.channel.send('\u0028\u256f\u00b0\u25a1\u00b0\uff09\u256f\ufe35\u0020\u253b\u2501\u253b');
+            }
+        }
+    });
+
+    client.on('guildCreate', (data, error) => 
+    {
+        let guild = data.id;
+    });
+
+    client.on('guildMemberAdd', (mem, error) =>
+    {
+        if ( config.get('isDMEnabled', mem.guild.id) && config.get('newJoinDMMessage', mem.guild.id) != '')
+        {
+            mem.createDM()
+                .then((DM) =>
+                {
+                    console.log('Sending DM to new member: ' + mem.user.username + '#' + mem.user.discriminator);
+				
+                    DM.send(config.get('newJoinDMMessage', mem.guild.id));
+                })
+                .catch( (e) =>
+                {
+                    console.log('Could not open DM: ');
+                    console.log(e);
+                });
+        }
+		
+        if ( config.get('mutedRole', mem.guild.id) != '')
+        {
+            // muting setup
+            let muted = config.get('mutedObj', mem.guild.id);
+            let mutedRole = config.get('mutedRole', mem.guild.id);
 			
-                DM.send(config.get('newJoinDMMessage', mem.guild.id));
-            })
-            .catch( (e) =>
+            if (muted.ids.indexOf(mem.id) > -1)
             {
-                console.log('Could not open DM: ');
-                console.log(e);
-            });
-    }
-    
-    if ( config.get('mutedRole', mem.guild.id) != '')
-    {
-        // muting setup
-        let muted = config.get('mutedObj', mem.guild.id);
-        let mutedRole = config.get('mutedRole', mem.guild.id);
-        
-        if (muted.ids.indexOf(mem.id) > -1)
-        {
-            mem.roles.add(mutedRole);
-            console.log(`Member ${mem.user.username}#${mem.user.discriminator} rejoined and was muted previously`);
+                mem.roles.add(mutedRole);
+                console.log(`Member ${mem.user.username}#${mem.user.discriminator} rejoined and was muted previously`);
+            }
         }
-    }
-});
+    });
+
+}
+
 
 function processChatCommand(data)
 {
