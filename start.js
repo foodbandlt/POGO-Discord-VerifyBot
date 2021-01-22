@@ -789,7 +789,7 @@ function processUserCommand(data, opts)
         let num = null;
         
         // Support for multiple friend codes
-        // > 2 args, accounting for thirs arg
+        // > 2 args, accounting for third arg
         // Only support for up to 9
         if (opts.args.length > 1 && opts.args[1].length == 1)
         {
@@ -808,17 +808,16 @@ function processUserCommand(data, opts)
         
         let mod = data.author.id.toString() + (num != null && num > 1 ? num : '');
         
-        let trainers = config.get('friendCodes', opts.guild);
-        let trainer = trainers[mod];
-        
-        if (typeof trainer == 'undefined')
+        let trainer = getFCInfo(mod, opts.guild);
+		
+        if (trainer)
         {
-            data.reply('I don\'t have anything on record for you unfortunately.  Use the `setfc` and `setign` commands to fix that.');
+            data.reply(`\n**IGN**: ${trainer.name != '' ? trainer.name : '*Not set*'}`);
+            data.channel.send(trainer.code != '' ? trainer.code : '*Trainer code not set*');
             return;
         }
         
-        data.reply(`\n**IGN**: ${trainer.name != '' ? trainer.name : '*Not set*'}`);
-        data.channel.send(trainer.code != '' ? trainer.code : '*Trainer code not set*');
+        data.reply('I don\'t have anything on record for you unfortunately.  Use the `setfc` and `setign` commands to fix that.');
     }
     /*
     else if (opts.args[0] == 'votekick' || 
@@ -1887,6 +1886,8 @@ function processAdminCommand(data, opts)
             '`'+ c + 'mutedetails @<username>` - Shows details of mute\n' +
             '`'+ c + 'mutesetrole @<role>` - Sets muted role\n' +
             '`'+ c + 'muteunsetrole` - Unsets muted role\n' +
+            '`'+ c + 'lookup @<username>` - Looks up info about user tagged\n' +
+            '`'+ c + 'lookupbyign <ign>` - Looks up discord user by ign\n' +
             /*
             '\n**Raids**\n' +
 			'`'+ c + 'addboss <tier> <boss>` - Adds boss to specified tier\n' +
@@ -2177,6 +2178,54 @@ function processAdminCommand(data, opts)
         data.react('👌');
     }
     
+    else if (opts.args[0] == 'muteunsetrole') 
+    {
+        config.set('mutedRole', '', opts.guild);
+        data.react('👌');
+    }
+	
+    else if (opts.args[0] == 'lookup' || opts.args[0] == 'whois') 
+    {
+        let mem = data.mentions.members.first();
+		
+        if (!mem)
+        {
+            data.reply('I don\'t see a user mention in there anywhere');
+            return;
+        }
+		
+        let trainer = getFCInfo(mem.id, opts.guild);
+		
+        if (trainer)
+        {
+            data.reply(`\n**IGN**: ${trainer.name != '' ? trainer.name : '*Not set*'}`);
+            data.channel.send(trainer.code != '' ? trainer.code : '*Trainer code not set*');
+            return;
+        }
+		
+        data.reply('No records for that user found');
+    }
+	
+    else if (opts.args[0] == 'lookupbyign' || opts.args[0] == 'whoisbyign') 
+    {
+        let trainer = getFCInfoByIGN(opts.args[1], opts.guild);
+		
+        if (trainer)
+        {
+            data.guild.members.fetch(trainer.id)
+                .then( (mem) => 
+                {
+				
+                    data.reply(`\n**Discord**: ${mem.displayName} (${mem.user.username}#${mem.user.discriminator})\n**IGN**: ${trainer.name != '' ? trainer.name : '*Not set*'}`);
+                    data.channel.send(trainer.code != '' ? trainer.code : '*Trainer code not set*');
+                });
+            
+            return;
+        }
+		
+        data.reply('No records for that IGN found');
+    }
+	
     else if (opts.args[0] == 'muteunsetrole') // Unverify all current users
     {
         config.set('mutedRole', '', opts.guild);
@@ -3043,7 +3092,7 @@ function processAdminCommand(data, opts)
     else if (opts.args[0] == 'setdm') // Sets DM message
     {
         let ind = data.content.indexOf(' ');
-		// Removing command from message
+        // Removing command from message
         let newMess = ( ind > -1 ? data.content.substring( data.content.indexOf(' ') + 1 ) : '');
         config.set('newJoinDMMessage', newMess, opts.guild);
             
@@ -4010,6 +4059,33 @@ function isRaidBoss(boss, list)
     return -1;
 }
 */
+
+function getFCInfo (mod, guild) {
+    let trainers = config.get('friendCodes', guild);
+    let trainer = trainers[mod];
+	
+    return typeof trainer == 'undefined' ? null : trainer;
+}
+
+function getFCInfoByIGN (ign, guild) {
+    let trainers = config.get('friendCodes', guild);
+    let trainer = null;
+    ign = ign.toLowerCase();
+	
+    for (let i in trainers)
+    {
+        if (trainers[i].name.toLowerCase() == ign)
+        {
+            trainer = trainers[i];
+            trainer.id = i;
+            break;
+        }
+    }
+	
+    return trainer;
+}
+
+
 function normalizeBoss(boss)
 {
     return boss.substr(0, 1).toUpperCase() + boss.substr(1).toLowerCase();
