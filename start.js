@@ -634,9 +634,9 @@ function processUserCommand(data, opts)
         ];
 		
         let mess = new Discord.MessageEmbed()
-            .setTitle('Magic 8ball says:')
+            .setTitle('Magic 8ball')
             .setColor(0x5DADE2)
-            .addField(`${resp[Math.floor(Math.random() * resp.length)]}`, '');
+            .addField(':8ball: says:', `${resp[Math.floor(Math.random() * resp.length)]}`);
 		
         data.channel.send(mess);
     }
