@@ -474,6 +474,7 @@ function processUserCommand(data, opts)
 			'`'+ c + 'modrank` - Lists the current highest ranked mod\n' +
 			'`'+ c + 'gif <search term>` - Posts a gif found using the search term\n' +
 			'`'+ c + 'img <search term>` - Posts an image found using the search term\n' +
+			'`'+ c + '8ball <question>` - Asks the magic 8ball a question\n' +
 			'`'+ c + 'stats` - Prints out some server stats\n' +
 			'`'+ c + 'google <topic>` - Gives you a Google link to the topic\n' +
 			'`'+ c + 'setfc <friend code>` - Sets your friendcode for the `fc` command\n' +
@@ -528,16 +529,16 @@ function processUserCommand(data, opts)
         data.member.roles.add( config.get('verifyRoleID', opts.guild) );
         data.delete();
     }
-    else if (opts.args[0] == 'ping') // Unhides channel to unverified uers
+    else if (opts.args[0] == 'ping')
     {
         data.react('👌');
         data.reply('Pong!');
     }
-    else if (opts.args[0] == 'google') // Unhides channel to unverified uers
+    else if (opts.args[0] == 'google') 
     {
         data.reply('https://www.google.com/search?q=' + encodeURIComponent(opts.withoutCommand));
     }
-    else if (opts.args[0] == 'dice' || opts.args[0] == 'roll') // Unhides channel to unverified uers
+    else if (opts.args[0] == 'dice' || opts.args[0] == 'roll') 
     {
         if (!opts.args[1])
         {
@@ -606,6 +607,38 @@ function processUserCommand(data, opts)
             
             data.reply('Dice landed on ' + roll(num));
         }
+    }
+    else if (opts.args[0] == '8ball')
+    {
+        const resp = [
+            'As I see it, yes.',
+            'Ask again later.',
+            'Better not tell you now.',
+            'Cannot predict now.',
+            'Concentrate and ask again.',
+            'Don\'t count on it.',
+            'It is certain.',
+            'It is decidedly so.',
+            'Most likely.',
+            'My reply is no.',
+            'My sources say no.',
+            'Outlook not so good.',
+            'Outlook good.',
+            'Reply hazy, try again later.',
+            'Signs point to yes.',
+            'Very doubtful.',
+            'Without a doubt.',
+            'Yes.',
+            'Yes, definitely.',
+            'You may rely on it.',
+        ];
+		
+        let mess = new Discord.MessageEmbed()
+            .setTitle('Magic 8ball')
+            .setColor(0x5DADE2)
+            .addField('8ball says:', `${resp[Math.floor(Math.random() * resp.length)]}`);
+		
+        data.channel.send(mess);
     }
 
     else if (opts.args[0] == 'emojis' || 
@@ -2122,7 +2155,7 @@ function processAdminCommand(data, opts)
             data.react('👌');
         });
     }
-    else if (opts.args[0] == 'mutedetails') // Unverify all current users
+    else if (opts.args[0] == 'mutedetails' || opts.args[0] == 'muteinfo') // Unverify all current users
     {
         let muted = config.get('mutedObj', opts.guild);
         let mem = data.mentions.members.first();
@@ -2232,12 +2265,6 @@ function processAdminCommand(data, opts)
         }
 		
         data.reply('No records for that IGN found');
-    }
-	
-    else if (opts.args[0] == 'muteunsetrole') // Unverify all current users
-    {
-        config.set('mutedRole', '', opts.guild);
-        data.react('👌');
     }
     
     // *******************************
