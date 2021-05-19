@@ -2468,7 +2468,7 @@ function processAdminCommand(data, opts)
             return;
         }
         
-        let cat = opts.args[1].replace(/[^\w]/gi, '').toLowerCase();
+        let cat = opts.args[1].replace(/[^a-zA-Z0-9/]/gi, '').toLowerCase();
         
         if (cat == '')
         {
@@ -2498,8 +2498,8 @@ function processAdminCommand(data, opts)
             return;
         }
         
-        let cat = opts.args[1].replace(/[^\w]/gi, '');
-        let cat2 = opts.args[2].replace(/[^\w]/gi, '');
+        let cat = opts.args[1].replace(/[^a-zA-Z0-9/]/gi, '');
+        let cat2 = opts.args[2].replace(/[^a-zA-Z0-9/]/gi, '');
         
         if (cat == '' || cat2 == '')
         {
